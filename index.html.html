@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEECA Agent — Team Dashboard</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<style>
+:root {
+  --bg:#f5f4f0;--surf:#ffffff;--surf2:#f0efe9;--surf3:#e8e7e1;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+  --text:#1a1a18;--text2:#5a5a56;--text3:#9a9a94;
+  --blue:#185FA5;--blue-bg:#E6F1FB;--blue-t:#0C447C;
+  --green:#3B6D11;--green-bg:#EAF3DE;--green-t:#27500A;
+  --amber:#854F0B;--amber-bg:#FAEEDA;--amber-t:#633806;
+  --red:#A32D2D;--red-bg:#FCEBEB;--red-t:#791F1F;
+  --purple:#534AB7;--purple-bg:#EEEDFE;--purple-t:#3C3489;
+  --teal:#0F6E56;--teal-bg:#E1F5EE;--teal-t:#085041;
+  --r:10px;--rs:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;}
+
+/* SCREENS */
+.screen{display:none;min-height:100vh;}
+.screen.active{display:flex;}
+
+/* LOGIN SCREEN */
+#screen-login{align-items:center;justify-content:center;flex-direction:column;background:var(--bg);}
+.login-card{background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:380px;max-width:95vw;}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+.login-logo-icon{width:44px;height:44px;background:var(--blue);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;}
+.login-logo-text{font-size:18px;font-weight:600;}
+.login-logo-sub{font-size:12px;color:var(--text3);}
+.login-title{font-size:15px;font-weight:600;margin-bottom:4px;}
+.login-sub{font-size:12px;color:var(--text3);margin-bottom:20px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:5px;display:block;}
+.form-input{width:100%;padding:9px 12px;border:1px solid var(--border2);border-radius:var(--rs);font-size:14px;color:var(--text);background:var(--bg);outline:none;font-family:inherit;}
+.form-input:focus{border-color:var(--blue);background:#fff;}
+.btn{padding:9px 18px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--surf);color:var(--text);transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:var(--surf2);}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);width:100%;justify-content:center;}
+.btn-primary:hover{background:var(--blue-t);}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-danger{background:var(--red-bg);color:var(--red-t);border-color:transparent;}
+.btn-danger:hover{background:#f5c1c1;}
+.login-switch{text-align:center;margin-top:16px;font-size:12px;color:var(--text3);}
+.login-switch a{color:var(--blue);cursor:pointer;text-decoration:none;}
+.error-msg{background:var(--red-bg);color:var(--red-t);padding:8px 12px;border-radius:var(--rs);font-size:12px;margin-bottom:12px;display:none;}
+
+/* MEMBER SELECT */
+.member-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
+.member-btn{padding:10px 12px;border:1px solid var(--border2);border-radius:var(--rs);cursor:pointer;background:var(--surf);display:flex;align-items:center;gap:8px;transition:all .15s;}
+.member-btn:hover{border-color:var(--blue);background:var(--blue-bg);}
+.member-btn.selected{border-color:var(--blue);background:var(--blue-bg);}
+.avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+
+/* APP LAYOUT */
+#screen-app{flex-direction:column;}
+.topbar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.topbar-logo{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;}
+.topbar-logo-icon{width:28px;height:28px;background:var(--blue);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;}
+.topbar-user{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.topbar-user-name{font-size:13px;font-weight:500;}
+.topbar-user-role{font-size:11px;color:var(--text3);}
+.notif-btn{position:relative;background:none;border:1px solid var(--border2);border-radius:var(--rs);width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.notif-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--red);border-radius:50%;display:none;}
+.notif-dot.show{display:block;}
+
+.app-body{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+.sidebar{width:210px;background:var(--surf);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.nav{padding:8px;}
+.nav-section{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:10px 8px 4px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rs);cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;margin-bottom:2px;}
+.nav-item:hover{background:var(--surf2);color:var(--text);}
+.nav-item.active{background:var(--blue-bg);color:var(--blue-t);font-weight:500;}
+.nav-icon{font-size:16px;width:18px;text-align:center;}
+.nav-badge{margin-left:auto;background:var(--red-bg);color:var(--red-t);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;}
+
+/* MAIN CONTENT */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+.page-header{padding:18px 22px 0;flex-shrink:0;}
+.page-title{font-size:17px;font-weight:600;}
+.page-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.content{padding:16px 22px;}
+
+/* PAGE VISIBILITY */
+.page{display:none;}
+.page.active{display:block;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px;}
+.stat-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:14px;}
+.stat-label{font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:500;}
+.stat-val{font-size:24px;font-weight:600;line-height:1;}
+.c-red{color:var(--red);}.c-amber{color:var(--amber);}.c-green{color:var(--green);}.c-blue{color:var(--blue);}.c-purple{color:var(--purple);}
+
+/* TABLE */
+.table-wrap{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:18px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:10px 13px;background:var(--surf2);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+td{padding:10px 13px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#fafaf8;}
+
+/* BADGES */
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap;display:inline-block;}
+.b-completed{background:var(--green-bg);color:var(--green-t);}
+.b-pending{background:var(--surf2);color:var(--text2);}
+.b-overdue{background:var(--red-bg);color:var(--red-t);}
+.b-delayed{background:var(--amber-bg);color:var(--amber-t);}
+.b-review{background:var(--purple-bg);color:var(--purple-t);}
+.b-onhold{background:#FFF3CD;color:#856404;}
+.b-high{background:var(--red-bg);color:var(--red-t);}
+.b-medium{background:var(--amber-bg);color:var(--amber-t);}
+.b-low{background:var(--green-bg);color:var(--green-t);}
+.b-inprogress{background:var(--blue-bg);color:var(--blue-t);}
+
+/* CARDS */
+.card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px;}
+.card-title{font-size:14px;font-weight:600;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--text3);margin-bottom:14px;}
+
+/* TASK CARD (team view) */
+.task-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;transition:border-color .15s;}
+.task-card:hover{border-color:var(--border2);}
+.task-card.urgent{border-left:3px solid var(--red);}
+.task-card.new-task{border-left:3px solid var(--blue);}
+.task-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+.task-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+
+/* TEAM MEMBER CARDS */
+.member-list{display:flex;flex-direction:column;gap:8px;}
+.member-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;display:flex;align-items:center;gap:12px;}
+.member-info{flex:1;}
+.member-name{font-size:13px;font-weight:600;}
+.member-role-label{font-size:12px;color:var(--text3);}
+.member-actions{display:flex;gap:6px;}
+
+/* FORM */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+select.form-input{cursor:pointer;}
+textarea.form-input{resize:vertical;min-height:80px;font-family:inherit;}
+
+/* NOTIFICATIONS PANEL */
+.notif-panel{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin-bottom:18px;}
+.notif-item{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+.notif-item:last-child{border-bottom:none;}
+.notif-item.unread{background:#f0f6ff;}
+.notif-dot-indicator{width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0;margin-top:5px;}
+.notif-text{font-size:13px;flex:1;}
+.notif-time{font-size:11px;color:var(--text3);white-space:nowrap;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surf);border-radius:14px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:15px;font-weight:600;}
+.modal-body{padding:20px;}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text3);line-height:1;}
+
+/* STATUS UPDATE BUTTONS */
+.status-btn{padding:6px 12px;border-radius:var(--rs);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--surf);transition:all .15s;}
+.status-btn:hover{border-color:var(--blue);background:var(--blue-bg);}
+.status-btn.active-status{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+/* FIREBASE CONFIG BOX */
+.config-box{background:var(--surf2);border:1px dashed var(--border2);border-radius:var(--r);padding:16px;margin-bottom:16px;}
+.config-box-title{font-size:13px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.config-box-sub{font-size:12px;color:var(--text3);margin-bottom:12px;}
+.config-input{width:100%;padding:7px 10px;border:1px solid var(--border2);border-radius:var(--rs);font-size:12px;color:var(--text);background:#fff;font-family:monospace;outline:none;margin-bottom:6px;}
+.config-input:focus{border-color:var(--blue);}
+.step-badge{background:var(--blue);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:6px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--rs);font-size:13px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+
+/* SETUP SCREEN */
+#screen-setup{align-items:center;justify-content:center;flex-direction:column;background:var(--bg);}
+.setup-card{background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:32px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.setup-step{display:none;}.setup-step.active{display:block;}
+.code-block{background:#1e1e2e;color:#cdd6f4;padding:12px;border-radius:var(--rs);font-family:monospace;font-size:12px;line-height:1.6;overflow-x:auto;margin:10px 0;}
+.highlight{color:#89dceb;}
+.step-nav{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+
+/* SECTION HEADING */
+.sec-heading{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 10px;display:flex;align-items:center;justify-content:space-between;}
+
+/* FILTER ROW */
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.filter-select{padding:6px 10px;border:1px solid var(--border2);border-radius:var(--rs);font-size:12px;color:var(--text);background:var(--surf);outline:none;}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:32px;margin-bottom:8px;}
+
+/* PROGRESS BAR */
+.pbar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px;}
+.pbar-fill{height:100%;border-radius:2px;background:var(--blue);transition:width .4s;}
+
+/* DETAIL ROW */
+.detail-row{display:flex;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-label{color:var(--text3);width:140px;flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SETUP SCREEN -->
+<div class="screen active" id="screen-setup">
+  <div class="setup-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">S</div>
+      <div><div class="login-logo-text">SEECA Agent</div><div style="font-size:12px;color:var(--text3);">First-time setup</div></div>
+    </div>
+
+    <div class="setup-step active" id="setup-step-1">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Step 1 — Connect Firebase</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">Firebase is Google's free real-time database. It lets all team members see live updates when tasks are assigned or updated. Free tier is more than enough for SEECA.</div>
+      <div style="background:var(--blue-bg);border-radius:var(--rs);padding:12px 14px;margin-bottom:16px;font-size:13px;line-height:1.8;color:var(--blue-t);">
+        <strong>Quick setup (5 minutes):</strong><br>
+        <span class="step-badge">1</span> Go to <strong>console.firebase.google.com</strong><br>
+        <span class="step-badge">2</span> Click "Add project" → name it <strong>seeca-agent</strong> → Create<br>
+        <span class="step-badge">3</span> Click "Realtime Database" in left menu → "Create database" → Start in test mode<br>
+        <span class="step-badge">4</span> Click the ⚙️ gear → "Project settings" → scroll to "Your apps" → click &lt;/&gt; (Web)<br>
+        <span class="step-badge">5</span> Register app → copy the <strong>firebaseConfig</strong> values below
+      </div>
+      <div class="form-group"><label class="form-label">API Key</label><input class="form-input" id="fb-apiKey" placeholder="AIzaSy..."></div>
+      <div class="form-group"><label class="form-label">Auth Domain</label><input class="form-input" id="fb-authDomain" placeholder="seeca-agent.firebaseapp.com"></div>
+      <div class="form-group"><label class="form-label">Database URL</label><input class="form-input" id="fb-databaseURL" placeholder="https://seeca-agent-default-rtdb.firebaseio.com"></div>
+      <div class="form-group"><label class="form-label">Project ID</label><input class="form-input" id="fb-projectId" placeholder="seeca-agent"></div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn" onclick="skipFirebase()" style="flex:1;">Skip for now (offline mode)</button>
+        <button class="btn btn-primary" onclick="connectFirebase()" style="flex:1;">Connect Firebase →</button>
+      </div>
+    </div>
+
+    <div class="setup-step" id="setup-step-2">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Step 2 — Set manager password</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">This password protects the manager/CEO dashboard. Team members use their own PIN.</div>
+      <div class="form-group"><label class="form-label">Manager / CEO Password</label><input class="form-input" type="password" id="setup-mgr-pass" placeholder="Choose a strong password"></div>
+      <div class="form-group"><label class="form-label">Confirm Password</label><input class="form-input" type="password" id="setup-mgr-pass2" placeholder="Repeat password"></div>
+      <div class="error-msg" id="setup-err"></div>
+      <div class="step-nav">
+        <button class="btn" onclick="goSetupStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="setupPassword()">Continue →</button>
+      </div>
+    </div>
+
+    <div class="setup-step" id="setup-step-3">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Step 3 — Set up EmailJS (optional)</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">EmailJS lets SEECA Agent send real emails to team members when tasks are assigned or put on hold. <strong>200 free emails/month</strong> — more than enough.</div>
+      <div style="background:var(--amber-bg);border-radius:var(--rs);padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--amber-t);line-height:1.7;">
+        <strong>Setup:</strong> Go to emailjs.com → Free account → "Email Services" → connect Gmail → "Email Templates" → create template with variables: <code>{{to_email}}</code>, <code>{{to_name}}</code>, <code>{{subject}}</code>, <code>{{message}}</code>
+      </div>
+      <div class="form-group"><label class="form-label">EmailJS Public Key</label><input class="form-input" id="ejs-pubkey" placeholder="user_xxxxxxxxx"></div>
+      <div class="form-group"><label class="form-label">Service ID</label><input class="form-input" id="ejs-service" placeholder="service_xxxxxxx"></div>
+      <div class="form-group"><label class="form-label">Template ID</label><input class="form-input" id="ejs-template" placeholder="template_xxxxxxx"></div>
+      <div class="step-nav">
+        <button class="btn" onclick="goSetupStep(2)">← Back</button>
+        <button class="btn" onclick="skipEmail()">Skip email</button>
+        <button class="btn btn-primary" onclick="saveEmailJS()">Save & Continue →</button>
+      </div>
+    </div>
+
+    <div class="setup-step" id="setup-step-4">
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px;">✅ Setup complete!</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">SEECA Agent is ready. The manager dashboard is password-protected. Team members log in with their name and PIN. You can add team members from the Manager Panel.</div>
+      <div style="background:var(--green-bg);border-radius:var(--rs);padding:14px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:600;color:var(--green-t);margin-bottom:8px;">Your team's initial PINs (change them after first login):</div>
+        <div id="initial-pins" style="font-size:12px;color:var(--green-t);line-height:2;font-family:monospace;"></div>
+      </div>
+      <button class="btn btn-primary" onclick="finishSetup()" style="width:100%;">Open SEECA Agent →</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div class="screen" id="screen-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">S</div>
+      <div><div class="login-logo-text">SEECA Agent</div><div class="login-logo-sub">SEE Consultants & Architects</div></div>
+    </div>
+
+    <!-- ROLE SELECT -->
+    <div id="login-role-select">
+      <div class="login-title">Who are you?</div>
+      <div class="login-sub">Select your role to continue</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn" onclick="showLoginForm('manager')" style="justify-content:flex-start;padding:12px 14px;">
+          <span style="font-size:20px;">👔</span>
+          <div style="text-align:left;"><div style="font-weight:600;">Manager / CEO</div><div style="font-size:11px;color:var(--text3);">Full dashboard access</div></div>
+        </button>
+        <button class="btn" onclick="showLoginForm('team')" style="justify-content:flex-start;padding:12px 14px;">
+          <span style="font-size:20px;">👷</span>
+          <div style="text-align:left;"><div style="font-weight:600;">Team Member</div><div style="font-size:11px;color:var(--text3);">View & update your tasks</div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- MANAGER LOGIN -->
+    <div id="login-manager" style="display:none;">
+      <div class="login-title">Manager Login</div>
+      <div class="login-sub">Enter your password to access the dashboard</div>
+      <div class="error-msg" id="mgr-err">Incorrect password. Try again.</div>
+      <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" id="mgr-pass-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')loginManager()"></div>
+      <button class="btn btn-primary" onclick="loginManager()">Login as Manager</button>
+      <div class="login-switch"><a onclick="showLoginForm(null)">← Back</a></div>
+    </div>
+
+    <!-- TEAM LOGIN -->
+    <div id="login-team" style="display:none;">
+      <div class="login-title">Team Member Login</div>
+      <div class="login-sub">Select your name then enter your PIN</div>
+      <div class="error-msg" id="team-err">Incorrect PIN. Try again.</div>
+      <div id="member-select-grid" class="member-grid"></div>
+      <div class="form-group" id="pin-group" style="display:none;">
+        <label class="form-label">Your PIN</label>
+        <input class="form-input" type="password" id="team-pin-input" placeholder="4-digit PIN" maxlength="6" onkeydown="if(event.key==='Enter')loginTeam()">
+      </div>
+      <button class="btn btn-primary" onclick="loginTeam()" id="team-login-btn" style="display:none;">Login</button>
+      <div class="login-switch"><a onclick="showLoginForm(null)">← Back</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP SCREEN -->
+<div class="screen" id="screen-app">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon">S</div>
+      SEECA Agent
+    </div>
+    <div id="topbar-project" style="font-size:12px;color:var(--text3);"></div>
+    <div class="topbar-user">
+      <button class="notif-btn" onclick="showPage('notifications')" title="Notifications">
+        🔔<span class="notif-dot" id="notif-dot"></span>
+      </button>
+      <div>
+        <div class="topbar-user-name" id="topbar-name"></div>
+        <div class="topbar-user-role" id="topbar-role"></div>
+      </div>
+      <button class="btn btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <nav class="nav" id="sidebar-nav"></nav>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="page-header"><div class="page-title" id="page-title">Dashboard</div><div class="page-sub" id="page-sub"></div></div>
+      <div class="content">
+
+        <!-- DASHBOARD (manager) -->
+        <div class="page" id="page-dashboard">
+          <div class="stats-row" id="dash-stats"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">
+            <div>
+              <div class="sec-heading">🔴 Urgent attention</div>
+              <div id="dash-urgent"></div>
+            </div>
+            <div>
+              <div class="sec-heading">👥 Team overview</div>
+              <div id="dash-team-overview"></div>
+            </div>
+          </div>
+          <div class="sec-heading">📁 Projects</div>
+          <div id="dash-projects" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;"></div>
+        </div>
+
+        <!-- ALL TASKS (manager) -->
+        <div class="page" id="page-tasks">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div class="filter-row" style="margin:0;">
+              <input type="text" class="form-input" id="task-search" placeholder="Search..." style="width:180px;" oninput="filterTasks()">
+              <select class="filter-select" id="f-status" onchange="filterTasks()"><option value="">All status</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>Delayed</option><option>On Hold</option><option>Submitted for Review</option><option>Overdue</option></select>
+              <select class="filter-select" id="f-member" onchange="filterTasks()"><option value="">All members</option></select>
+              <select class="filter-select" id="f-priority" onchange="filterTasks()"><option value="">All priority</option><option>High</option><option>Medium</option><option>Low</option></select>
+              <select class="filter-select" id="f-project" onchange="filterTasks()"><option value="">All projects</option></select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAssignModal()">+ Assign Task</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Project</th><th>Task</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Hrs</th><th></th></tr></thead>
+              <tbody id="task-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- MY TASKS (team member) -->
+        <div class="page" id="page-my-tasks">
+          <div class="filter-row">
+            <select class="filter-select" id="mt-status" onchange="renderMyTasks()"><option value="">All status</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>On Hold</option><option>Submitted for Review</option></select>
+            <select class="filter-select" id="mt-priority" onchange="renderMyTasks()"><option value="">All priority</option><option>High</option><option>Medium</option><option>Low</option></select>
+            <span style="font-size:12px;color:var(--text3);margin-left:auto;" id="my-task-count"></span>
+          </div>
+          <div id="my-tasks-list"></div>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div class="page" id="page-notifications">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:13px;color:var(--text3);" id="notif-count-label"></span>
+            <button class="btn btn-sm" onclick="markAllRead()">Mark all read</button>
+          </div>
+          <div id="notif-list"></div>
+        </div>
+
+        <!-- ASSIGN TASK (manager) -->
+        <div class="page" id="page-assign">
+          <div class="card">
+            <div class="card-title">Assign a new task</div>
+            <div class="card-sub">Fill in the details. The team member will be notified immediately.</div>
+
+            <div class="form-row">
+              <!-- PROJECT: dropdown + optional new name input -->
+              <div>
+                <label class="form-label">Project</label>
+                <select class="form-input" id="a-project" onchange="onProjectChange()">
+                  <option value="">Select existing project...</option>
+                </select>
+                <div id="a-project-new-wrap" style="display:none;margin-top:6px;position:relative;">
+                  <input class="form-input" id="a-project-new" placeholder="Type new project name..." style="padding-right:60px;">
+                  <button onclick="cancelNewProject()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;">Cancel</button>
+                </div>
+              </div>
+              <!-- CLIENT NAME -->
+              <div>
+                <label class="form-label">Client Name <span style="color:var(--text3);font-weight:400;">(optional)</span></label>
+                <input class="form-input" id="a-client" placeholder="e.g. Mr. Faraz Ali">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <!-- SCOPE: free-text with quick-pick suggestions -->
+              <div style="grid-column:1/-1;">
+                <label class="form-label" style="display:flex;align-items:center;justify-content:space-between;">
+                  Task Scope / Description
+                  <span style="font-size:11px;color:var(--text3);font-weight:400;">Type freely or pick a common scope below</span>
+                </label>
+                <input class="form-input" id="a-task-desc" placeholder="e.g. Prepare 3D interior renders — 5 views, warm tones, client presentation ready" style="margin-bottom:8px;">
+                <!-- Quick-pick scope chips -->
+                <div style="display:flex;flex-wrap:wrap;gap:6px;" id="scope-chips"></div>
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-top:10px;">
+              <div>
+                <label class="form-label">Assign to</label>
+                <select class="form-input" id="a-assignee"><option value="">Select member...</option></select>
+              </div>
+              <div>
+                <label class="form-label">Priority</label>
+                <select class="form-input" id="a-priority"><option>High</option><option selected>Medium</option><option>Low</option></select>
+              </div>
+            </div>
+
+            <div class="form-row-3">
+              <div><label class="form-label">Deadline</label>
+                <input class="form-input" type="date" id="a-deadline">
+              </div>
+              <div><label class="form-label">Est. Hours</label>
+                <input class="form-input" type="number" id="a-hours" placeholder="e.g. 16">
+              </div>
+              <div><label class="form-label">Location <span style="color:var(--text3);font-weight:400;">(optional)</span></label>
+                <input class="form-input" id="a-location" placeholder="e.g. DHA Phase 6, Lahore">
+              </div>
+            </div>
+
+            <div class="form-group"><label class="form-label">Notes for team member</label>
+              <textarea class="form-input" id="a-notes" placeholder="Any specific instructions, client preferences, references, file locations..." style="min-height:70px;"></textarea>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <button class="btn btn-primary" onclick="assignTask()">✅ Assign Task & Notify</button>
+              <button class="btn" onclick="clearAssignForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TEAM MANAGEMENT (manager) -->
+        <div class="page" id="page-team">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-size:13px;color:var(--text3);" id="team-count-label"></div>
+            <button class="btn btn-primary btn-sm" onclick="openAddMemberModal()">+ Add Member</button>
+          </div>
+          <div id="team-list" class="member-list"></div>
+        </div>
+
+        <!-- SETTINGS (manager) -->
+        <div class="page" id="page-settings">
+          <div class="card">
+            <div class="card-title">Manager password</div>
+            <div class="card-sub">Change the manager / CEO login password</div>
+            <div class="form-group"><label class="form-label">New Password</label><input class="form-input" type="password" id="new-mgr-pass" placeholder="New password"></div>
+            <div class="form-group"><label class="form-label">Confirm</label><input class="form-input" type="password" id="new-mgr-pass2" placeholder="Repeat"></div>
+            <button class="btn btn-primary btn-sm" onclick="changeManagerPassword()">Save Password</button>
+          </div>
+          <div class="card" style="margin-top:14px;">
+            <div class="card-title">EmailJS settings</div>
+            <div class="card-sub">Update your EmailJS credentials for automatic email notifications</div>
+            <div class="form-group"><label class="form-label">Public Key</label><input class="form-input" id="s-ejs-pub" placeholder="user_..."></div>
+            <div class="form-group"><label class="form-label">Service ID</label><input class="form-input" id="s-ejs-svc" placeholder="service_..."></div>
+            <div class="form-group"><label class="form-label">Template ID</label><input class="form-input" id="s-ejs-tpl" placeholder="template_..."></div>
+            <button class="btn btn-primary btn-sm" onclick="saveEmailJSSettings()">Save EmailJS</button>
+          </div>
+          <div class="card" style="margin-top:14px;">
+            <div class="card-title">🔥 Firebase configuration</div>
+            <div class="card-sub">Connect to Firebase for real-time sync across all team devices. Get these values from <strong style="font-weight:500;">console.firebase.google.com → Project Settings → General → Your apps → &lt;/&gt; Web</strong></div>
+            <div id="fb-status-banner" style="display:none;padding:9px 13px;border-radius:var(--rs);font-size:13px;margin-bottom:14px;"></div>
+            <div class="form-group"><label class="form-label">API Key</label><input class="form-input" id="s-fb-apiKey" placeholder="AIzaSy..."></div>
+            <div class="form-group"><label class="form-label">Auth Domain</label><input class="form-input" id="s-fb-authDomain" placeholder="seeca-agent.firebaseapp.com"></div>
+            <div class="form-group"><label class="form-label">Database URL <span style="color:var(--red);font-size:11px;">— must include https:// and end with .firebaseio.com</span></label><input class="form-input" id="s-fb-databaseURL" placeholder="https://seeca-agent-default-rtdb.firebaseio.com"></div>
+            <div class="form-group"><label class="form-label">Project ID</label><input class="form-input" id="s-fb-projectId" placeholder="seeca-agent"></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm" onclick="saveAndConnectFirebase()">🔥 Save & Connect Firebase</button>
+              <button class="btn btn-sm" onclick="testFirebaseConnection()">Test connection</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="card-title" style="color:var(--red);">Danger zone</div>
+            <div class="card-sub">Reset all app data and start fresh</div>
+            <button class="btn btn-danger btn-sm" onclick="resetApp()">Reset all data</button>
+          </div>
+        </div>
+
+        <!-- BRIEFING (manager) -->
+        <div class="page" id="page-briefing">
+          <div id="briefing-content"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN TASK MODAL -->
+<div class="modal-overlay" id="assign-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">Assign task</div><button class="modal-close" onclick="closeModal('assign-modal')">✕</button></div>
+    <div class="modal-body" id="assign-modal-body"></div>
+  </div>
+</div>
+
+<!-- TASK DETAIL MODAL -->
+<div class="modal-overlay" id="task-detail-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="tdm-title">Task detail</div><button class="modal-close" onclick="closeModal('task-detail-modal')">✕</button></div>
+    <div class="modal-body" id="tdm-body"></div>
+    <div class="modal-footer" id="tdm-footer"></div>
+  </div>
+</div>
+
+<!-- ADD MEMBER MODAL -->
+<div class="modal-overlay" id="member-modal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header"><div class="modal-title" id="mm-title">Add team member</div><button class="modal-close" onclick="closeModal('member-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Full Name</label><input class="form-input" id="mm-name" placeholder="e.g. Ahmad Raza"></div>
+      <div class="form-group"><label class="form-label">Role / Specialization</label><input class="form-input" id="mm-role" placeholder="e.g. Interior Designer"></div>
+      <div class="form-group"><label class="form-label">Team</label>
+        <select class="form-input" id="mm-team"><option>Architecture</option><option>Interior Design</option><option>3D & Renders</option><option>Management</option><option>Other</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Email (for notifications)</label><input class="form-input" id="mm-email" type="email" placeholder="member@seeca.pk"></div>
+      <div class="form-group"><label class="form-label">Login PIN (4-6 digits)</label><input class="form-input" id="mm-pin" type="password" placeholder="e.g. 1234" maxlength="6"></div>
+      <div class="error-msg" id="mm-err"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('member-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMember()">Save Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS UPDATE MODAL (team member) -->
+<div class="modal-overlay" id="status-modal">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header"><div class="modal-title">Update task status</div><button class="modal-close" onclick="closeModal('status-modal')">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:13px;font-weight:600;margin-bottom:14px;" id="sm-task-name"></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Select new status:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;" id="sm-status-btns"></div>
+      <div class="form-group"><label class="form-label">Comment / update (optional)</label>
+        <textarea class="form-input" id="sm-comment" placeholder="Any progress update or blockers..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('status-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitStatusUpdate()">Update Status</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== CONFIG & STATE =====================
+const AVATAR_COLORS = ['#185FA5','#534AB7','#993556','#993C1D','#0F6E56','#3B6D11','#854F0B','#888780','#A32D2D','#0F6E56'];
+const AVATAR_BGS    = ['#E6F1FB','#EEEDFE','#FBEAF0','#FAECE7','#E1F5EE','#EAF3DE','#FAEEDA','#F1EFE8','#FCEBEB','#E1F5EE'];
+
+let DB = null;
+let OFFLINE = false;
+let currentUser = null;
+let selectedMemberLogin = null;
+let statusModalTaskId = null;
+let editingMemberId = null;
+
+const TASK_STATUSES = ['Pending','In Progress','On Hold','Submitted for Review','Completed'];
+
+// Default tasks from SEECA sheet (subset for seed)
+const SEED_TASKS = [
+  {id:'T001',code:'5962',project:'Restaurant ID',client:'Ch Nouman Latif',location:'GA Family, Sialkot',type:'Commercial',scope:'Layout Plans',assignee:'',priority:'Medium',estHours:8,status:'Completed',alert:''},
+  {id:'T004',code:'5962',project:'Restaurant ID',client:'Ch Nouman Latif',location:'GA Family, Sialkot',type:'Commercial',scope:'Arch Working Drawings',assignee:'',priority:'High',estHours:20,status:'Pending',alert:''},
+  {id:'T008',code:'5962',project:'Restaurant ID',client:'Ch Nouman Latif',location:'GA Family, Sialkot',type:'Commercial',scope:'Interior Working Drawings',assignee:'',priority:'High',estHours:20,status:'Pending',alert:''},
+  {id:'T011',code:'5967',project:'Marquee Design',client:'Ch Nouman Latif',location:'GA Family, Sialkot',type:'Commercial',scope:'3D Exterior Model',assignee:'',priority:'High',estHours:30,status:'Pending',alert:'Overdue'},
+  {id:'T016',code:'5967',project:'Marquee Design',client:'Ch Nouman Latif',location:'GA Family, Sialkot',type:'Commercial',scope:'3D Interior Models',assignee:'',priority:'High',estHours:30,status:'Pending',alert:'Overdue'},
+  {id:'T024',code:'5987',project:'1 Kanal ID',client:'Mr. Faraz Ali',location:'Bahria Town, Lahore',type:'Residential',scope:'3D Interior Renders',assignee:'',priority:'High',estHours:16,status:'Pending',alert:''},
+  {id:'T029',code:'5988',project:'3.68 Marla Arch',client:'Mr. Aftab A. Siddiqui',location:'New Lahore City',type:'Residential',scope:'NLC Submission Drawings',assignee:'ADNAN',priority:'High',estHours:20,status:'Pending',alert:''},
+  {id:'T031',code:'5988',project:'3.68 Marla Arch',client:'Mr. Aftab A. Siddiqui',location:'New Lahore City',type:'Residential',scope:'3D Interior Model',assignee:'BISMA',priority:'High',estHours:24,status:'Pending',alert:''},
+  {id:'T034',code:'5995',project:'10 Marla ID',client:'Mr. Waqas Iqbal',location:'Jhelum',type:'Residential',scope:'Layout Plans',assignee:'FATIMA IJAZ',priority:'High',estHours:8,status:'Delayed',alert:''},
+  {id:'T036',code:'5995',project:'10 Marla ID',client:'Mr. Waqas Iqbal',location:'Jhelum',type:'Residential',scope:'3D Interior Models',assignee:'BISMA',priority:'High',estHours:24,status:'Delayed',alert:''},
+  {id:'T047',code:'6001',project:'9.93 Marla Arch',client:'Aamir Hassan Chishti',location:'Sargodha',type:'Residential',scope:'3D Interior Renders (20 views)',assignee:'',priority:'High',estHours:30,status:'Pending',alert:''},
+  {id:'T052',code:'5966',project:'1 Kanal ID',client:'Nadeem Arshad',location:'Al Rehman Garden, Lahore',type:'Residential',scope:'Interior Working Drawings',assignee:'QASIM',priority:'High',estHours:20,status:'Pending',alert:''},
+  {id:'T057',code:'6002',project:'Restaurant ID (Johar)',client:'Sarfraz Malik',location:'Johar Town, Lahore',type:'Commercial',scope:'Interior Working Drawings',assignee:'QASIM',priority:'High',estHours:20,status:'Pending',alert:''},
+  {id:'T083',code:'6010',project:'Gloria Jeans ID',client:'Nauman Haider',location:'Askari 10, Lahore',type:'Commercial',scope:'3D Interior Model',assignee:'',priority:'High',estHours:24,status:'Delayed',alert:''},
+  {id:'T093',code:'6014',project:'7.37 Marla Arch',client:'Imran Arshad',location:'Niaz Baig, Lahore',type:'Residential',scope:'3D Exterior Model',assignee:'ZAHRA EJAZ',priority:'High',estHours:16,status:'Pending',alert:''},
+  {id:'T096',code:'6015',project:'1 Kanal Arch',client:'Haroon Shaikh',location:'OPF Housing, Lahore',type:'Residential',scope:'Layout Plan',assignee:'ZAHRA EJAZ',priority:'High',estHours:8,status:'Submitted for Review',alert:'Overdue'},
+  {id:'T101',code:'6017',project:'13 Marla Arch',client:'Rizwan Mubeshar',location:'Wyeth CHS, Lahore',type:'Residential',scope:'Layout Plan',assignee:'FATIMA IJAZ',priority:'High',estHours:8,status:'Pending',alert:'Overdue'},
+  {id:'T106',code:'6018',project:'Dental Clinic ID',client:'Dr. Ishaq Khalid',location:'Toba Tek Singh',type:'Commercial',scope:'Layout Plan',assignee:'BISMA',priority:'High',estHours:8,status:'Pending',alert:'Overdue'},
+];
+
+const SEED_MEMBERS = [
+  {id:'M01',name:'QASIM',role:'Architectural Drafter',team:'Architecture',email:'',pin:'1001',colorIdx:0},
+  {id:'M02',name:'FATIMA IJAZ',role:'Architect / Project Manager',team:'Architecture',email:'',pin:'1002',colorIdx:1},
+  {id:'M03',name:'BISMA',role:'Interior Designer',team:'Interior Design',email:'',pin:'1003',colorIdx:2},
+  {id:'M04',name:'HAFSA',role:'Interior Designer / Moodboard',team:'Interior Design',email:'',pin:'1004',colorIdx:3},
+  {id:'M05',name:'ZAHRA EJAZ',role:'3D Modeler / Interior Designer',team:'3D & Renders',email:'',pin:'1005',colorIdx:4},
+  {id:'M06',name:'AMNA',role:'Interior Designer / Landscaping',team:'Interior Design',email:'',pin:'1006',colorIdx:5},
+  {id:'M07',name:'MR. ABID',role:'3D Renderer / Project Manager',team:'3D & Renders',email:'',pin:'1007',colorIdx:6},
+  {id:'M08',name:'ADNAN',role:'Submission / NLC Drafter',team:'Architecture',email:'',pin:'1008',colorIdx:7},
+];
+
+// ===================== LOCAL STORAGE HELPERS =====================
+function lsGet(k){try{return JSON.parse(localStorage.getItem('seeca_'+k));}catch{return null;}}
+function lsSet(k,v){localStorage.setItem('seeca_'+k,JSON.stringify(v));}
+
+function getData(path,cb){
+  if(DB&&!OFFLINE){DB.ref(path).once('value',snap=>cb(snap.val()));}
+  else{cb(lsGet(path));}
+}
+function setData(path,val,cb){
+  if(DB&&!OFFLINE){DB.ref(path).set(val).then(()=>cb&&cb());}
+  else{lsSet(path,val);cb&&cb();}
+}
+function pushData(path,val,cb){
+  if(DB&&!OFFLINE){const ref=DB.ref(path).push(val);cb&&cb(ref.key);}
+  else{
+    const data=lsGet(path)||{};
+    const key='id_'+Date.now();
+    data[key]=val;lsSet(path,data);cb&&cb(key);
+  }
+}
+function updateData(path,updates,cb){
+  if(DB&&!OFFLINE){DB.ref(path).update(updates).then(()=>cb&&cb());}
+  else{
+    const cur=lsGet(path)||{};
+    Object.assign(cur,updates);lsSet(path,cur);cb&&cb();
+  }
+}
+function listenData(path,cb){
+  if(DB&&!OFFLINE){DB.ref(path).on('value',snap=>cb(snap.val()));}
+  else{cb(lsGet(path));}
+}
+
+// ===================== SETUP =====================
+let setupCurrentStep=1;
+function goSetupStep(n){
+  document.getElementById('setup-step-'+setupCurrentStep).classList.remove('active');
+  setupCurrentStep=n;
+  document.getElementById('setup-step-'+n).classList.add('active');
+}
+
+function connectFirebase(){
+  const cfg={
+    apiKey:document.getElementById('fb-apiKey').value.trim(),
+    authDomain:document.getElementById('fb-authDomain').value.trim(),
+    databaseURL:document.getElementById('fb-databaseURL').value.trim(),
+    projectId:document.getElementById('fb-projectId').value.trim(),
+  };
+  if(!cfg.apiKey||!cfg.databaseURL){toast('Please fill in API Key and Database URL');return;}
+  try{
+    const app=firebase.initializeApp(cfg,'seeca');
+    DB=firebase.database(app);
+    lsSet('fb_config',cfg);
+    toast('Firebase connected!');
+    goSetupStep(2);
+  }catch(e){toast('Firebase error: '+e.message);}
+}
+
+function skipFirebase(){OFFLINE=true;lsSet('offline',true);goSetupStep(2);}
+
+function setupPassword(){
+  const p1=document.getElementById('setup-mgr-pass').value;
+  const p2=document.getElementById('setup-mgr-pass2').value;
+  const err=document.getElementById('setup-err');
+  if(!p1){err.textContent='Please enter a password.';err.style.display='block';return;}
+  if(p1!==p2){err.textContent='Passwords do not match.';err.style.display='block';return;}
+  err.style.display='none';
+  lsSet('mgr_pass',btoa(p1));
+  goSetupStep(3);
+}
+
+function skipEmail(){lsSet('ejs_skipped',true);goSetupStep(4);showInitialPins();}
+
+function saveEmailJS(){
+  const pub=document.getElementById('ejs-pubkey').value.trim();
+  const svc=document.getElementById('ejs-service').value.trim();
+  const tpl=document.getElementById('ejs-template').value.trim();
+  if(pub)lsSet('ejs',{pub,svc,tpl});
+  goSetupStep(4);showInitialPins();
+}
+
+function showInitialPins(){
+  const pins=SEED_MEMBERS.map(m=>`${m.name.padEnd(18,' ')} → PIN: ${m.pin}`).join('\n');
+  document.getElementById('initial-pins').textContent=pins;
+}
+
+function finishSetup(){
+  getData('members',existing=>{
+    if(!existing||Object.keys(existing).length===0){
+      const membersObj={};
+      SEED_MEMBERS.forEach(m=>{membersObj[m.id]=m;});
+      setData('members',membersObj);
+    }
+    getData('tasks',existingTasks=>{
+      if(!existingTasks||Object.keys(existingTasks).length===0){
+        const tasksObj={};
+        SEED_TASKS.forEach(t=>{tasksObj[t.id]=t;});
+        setData('tasks',tasksObj);
+      }
+      lsSet('setup_done',true);
+      showScreen('login');
+    });
+  });
+}
+
+// ===================== BOOT =====================
+window.addEventListener('load',()=>{
+  const setupDone=lsGet('setup_done');
+  const offline=lsGet('offline');
+  const fbConfig=lsGet('fb_config');
+
+  if(fbConfig&&!offline){
+    try{
+      const app=firebase.initializeApp(fbConfig,'seeca');
+      DB=firebase.database(app);
+    }catch(e){}
+  }
+  if(offline)OFFLINE=true;
+
+  if(!setupDone){showScreen('setup');}
+  else{showScreen('login');}
+});
+
+// ===================== SCREEN MANAGEMENT =====================
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+}
+
+// ===================== LOGIN =====================
+function showLoginForm(type){
+  document.getElementById('login-role-select').style.display='none';
+  document.getElementById('login-manager').style.display='none';
+  document.getElementById('login-team').style.display='none';
+  document.getElementById('mgr-err').style.display='none';
+  document.getElementById('team-err').style.display='none';
+  selectedMemberLogin=null;
+  if(!type){document.getElementById('login-role-select').style.display='block';return;}
+  if(type==='manager'){document.getElementById('login-manager').style.display='block';}
+  if(type==='team'){
+    document.getElementById('login-team').style.display='block';
+    document.getElementById('pin-group').style.display='none';
+    document.getElementById('team-login-btn').style.display='none';
+    renderMemberSelectGrid();
+  }
+}
+
+function renderMemberSelectGrid(){
+  getData('members',members=>{
+    if(!members){document.getElementById('member-select-grid').innerHTML='<div style="font-size:13px;color:var(--text3);">No team members found.</div>';return;}
+    const arr=Object.values(members);
+    document.getElementById('member-select-grid').innerHTML=arr.map(m=>{
+      const ini=getInitials(m.name);
+      const ci=m.colorIdx||0;
+      return `<button class="member-btn" id="mb-${m.id}" onclick="selectMemberLogin('${m.id}','${m.name}')">
+        <div class="avatar" style="background:${AVATAR_BGS[ci%AVATAR_BGS.length]};color:${AVATAR_COLORS[ci%AVATAR_COLORS.length]};">${ini}</div>
+        <div style="text-align:left;"><div style="font-size:13px;font-weight:500;">${m.name}</div><div style="font-size:11px;color:var(--text3);">${m.role||''}</div></div>
+      </button>`;
+    }).join('');
+  });
+}
+
+function selectMemberLogin(id,name){
+  selectedMemberLogin={id,name};
+  document.querySelectorAll('.member-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('mb-'+id)?.classList.add('selected');
+  document.getElementById('pin-group').style.display='block';
+  document.getElementById('team-login-btn').style.display='block';
+  document.getElementById('team-pin-input').value='';
+  document.getElementById('team-pin-input').focus();
+}
+
+function loginManager(){
+  const pass=document.getElementById('mgr-pass-input').value;
+  const stored=lsGet('mgr_pass');
+  if(btoa(pass)===stored){
+    currentUser={role:'manager',name:'Manager',displayName:'Mr. Muhammad Naeem',id:'MGR'};
+    enterApp();
+  }else{
+    document.getElementById('mgr-err').style.display='block';
+  }
+}
+
+function loginTeam(){
+  if(!selectedMemberLogin){toast('Please select your name first.');return;}
+  const pin=document.getElementById('team-pin-input').value;
+  getData('members',members=>{
+    const m=members&&members[selectedMemberLogin.id];
+    if(!m){toast('Member not found.');return;}
+    if(String(m.pin)===String(pin)){
+      currentUser={role:'team',name:m.name,displayName:m.name,id:selectedMemberLogin.id,email:m.email,colorIdx:m.colorIdx||0};
+      markNotificationsViewed();
+      enterApp();
+    }else{
+      document.getElementById('team-err').style.display='block';
+    }
+  });
+}
+
+function logout(){
+  currentUser=null;
+  selectedMemberLogin=null;
+  document.getElementById('mgr-pass-input').value='';
+  document.getElementById('team-pin-input').value='';
+  showLoginForm(null);
+  showScreen('login');
+}
+
+// ===================== APP ENTRY =====================
+function enterApp(){
+  showScreen('app');
+  document.getElementById('topbar-name').textContent=currentUser.displayName||currentUser.name;
+  document.getElementById('topbar-role').textContent=currentUser.role==='manager'?'Manager / CEO':'Team Member';
+  buildSidebar();
+  if(currentUser.role==='manager'){
+    showPage('dashboard');
+    setupFirebaseListeners();
+  }else{
+    showPage('my-tasks');
+    loadNotificationsForUser();
+  }
+}
+
+function buildSidebar(){
+  const nav=document.getElementById('sidebar-nav');
+  if(currentUser.role==='manager'){
+    nav.innerHTML=`
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">🏠</span>Dashboard</div>
+      <div class="nav-section">Tasks</div>
+      <div class="nav-item" onclick="showPage('tasks')"><span class="nav-icon">✅</span>All Tasks</div>
+      <div class="nav-item" onclick="showPage('assign')"><span class="nav-icon">➕</span>Assign Task</div>
+      <div class="nav-item" onclick="showPage('briefing')"><span class="nav-icon">📋</span>Daily Briefing</div>
+      <div class="nav-section">Team</div>
+      <div class="nav-item" onclick="showPage('team')"><span class="nav-icon">👥</span>Team Members</div>
+      <div class="nav-item" onclick="showPage('notifications')"><span class="nav-icon">🔔</span>Notifications <span class="nav-badge" id="nav-notif-badge" style="display:none;"></span></div>
+      <div class="nav-section">System</div>
+      <div class="nav-item" onclick="showPage('settings')"><span class="nav-icon">⚙️</span>Settings</div>
+    `;
+  }else{
+    nav.innerHTML=`
+      <div class="nav-section">My Work</div>
+      <div class="nav-item active" onclick="showPage('my-tasks')"><span class="nav-icon">📋</span>My Tasks <span class="nav-badge" id="nav-notif-badge" style="display:none;"></span></div>
+      <div class="nav-item" onclick="showPage('notifications')"><span class="nav-icon">🔔</span>Notifications</div>
+    `;
+  }
+  populateAssignDropdowns();
+}
+
+// ===================== FIREBASE LISTENERS =====================
+function setupFirebaseListeners(){
+  renderDashboard();
+  renderAllTasks();
+  renderTeamList();
+  renderBriefing();
+  if(DB&&!OFFLINE){
+    DB.ref('tasks').on('value',()=>{renderDashboard();renderAllTasks();renderBriefing();});
+    DB.ref('members').on('value',()=>{renderTeamList();populateAssignDropdowns();});
+    DB.ref('notifications').on('value',()=>{updateNotifBadge();});
+  }
+}
+
+// ===================== PAGE NAVIGATION =====================
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('page-'+name);
+  if(el)el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+name+"'"))n.classList.add('active');});
+  const titles={dashboard:'Dashboard',tasks:'All Tasks','my-tasks':'My Tasks',notifications:'Notifications',assign:'Assign Task',team:'Team Members',settings:'Settings',briefing:'Daily Briefing'};
+  document.getElementById('page-title').textContent=titles[name]||name;
+  if(name==='dashboard')renderDashboard();
+  if(name==='tasks')renderAllTasks();
+  if(name==='my-tasks')renderMyTasks();
+  if(name==='team')renderTeamList();
+  if(name==='notifications')renderNotifications();
+  if(name==='briefing')renderBriefing();
+  if(name==='settings')loadSettings();
+}
+
+// ===================== HELPERS =====================
+function getInitials(name){return(name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function statusBadge(s){const m={'Completed':'b-completed','Pending':'b-pending','Overdue':'b-overdue','Delayed':'b-delayed','Submitted for Review':'b-review','On Hold':'b-onhold','In Progress':'b-inprogress'};return`<span class="badge ${m[s]||'b-pending'}">${s||'Pending'}</span>`;}
+function priorityBadge(p){const m={'High':'b-high','Medium':'b-medium','Low':'b-low'};return`<span class="badge ${m[p]||'b-medium'}">${p}</span>`;}
+function avatarHtml(name,colorIdx,size=28){const ci=colorIdx||0;return`<div class="avatar" style="width:${size}px;height:${size}px;background:${AVATAR_BGS[ci%AVATAR_BGS.length]};color:${AVATAR_COLORS[ci%AVATAR_COLORS.length]};">${getInitials(name)}</div>`;}
+function memberAvatarWithName(name,colorIdx){if(!name)return`<span style="color:var(--text3);font-size:12px;">Unassigned</span>`;return`<div style="display:flex;align-items:center;gap:6px;">${avatarHtml(name,colorIdx)}<span>${name}</span></div>`;}
+function toast(msg,dur=2500){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),dur);}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openModal(id){document.getElementById(id).classList.add('open');}
+
+// ===================== DASHBOARD =====================
+function renderDashboard(){
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const tArr=tasks?Object.values(tasks):[];
+      const mArr=members?Object.values(members):[];
+      const total=tArr.length,completed=tArr.filter(t=>t.status==='Completed').length;
+      const pending=tArr.filter(t=>t.status==='Pending'||t.status==='In Progress').length;
+      const overdue=tArr.filter(t=>t.alert==='Overdue'||t.status==='Delayed').length;
+      const review=tArr.filter(t=>t.status==='Submitted for Review').length;
+      const onhold=tArr.filter(t=>t.status==='On Hold').length;
+      document.getElementById('dash-stats').innerHTML=`
+        <div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val c-blue">${total}</div></div>
+        <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val c-green">${completed}</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">${pending}</div></div>
+        <div class="stat-card"><div class="stat-label">Overdue / Delayed</div><div class="stat-val c-red">${overdue}</div></div>
+        <div class="stat-card"><div class="stat-label">In Review</div><div class="stat-val c-purple">${review}</div></div>
+        <div class="stat-card"><div class="stat-label">On Hold</div><div class="stat-val c-amber">${onhold}</div></div>
+      `;
+      const urgentTasks=tArr.filter(t=>t.alert==='Overdue'||t.status==='Delayed'||t.status==='On Hold').slice(0,6);
+      document.getElementById('dash-urgent').innerHTML=urgentTasks.length?urgentTasks.map(t=>`
+        <div class="task-card ${t.alert==='Overdue'?'urgent':''}" style="cursor:pointer;" onclick="openTaskDetail('${t.id}')">
+          <div style="font-size:13px;font-weight:500;">${t.scope}</div>
+          <div class="task-meta">${statusBadge(t.status)}${priorityBadge(t.priority)}<span style="font-size:12px;color:var(--text3);">${t.project}</span></div>
+        </div>`).join(''):`<div class="empty"><div>✅</div><div style="font-size:13px;">No urgent tasks</div></div>`;
+      document.getElementById('dash-team-overview').innerHTML=`<div class="table-wrap"><table><thead><tr><th>Member</th><th>Done</th><th>Pending</th></tr></thead><tbody>
+        ${mArr.map(m=>{const mt=tArr.filter(t=>t.assignee===m.name);const done=mt.filter(t=>t.status==='Completed').length;const pend=mt.filter(t=>t.status!=='Completed').length;
+          return`<tr><td>${memberAvatarWithName(m.name,m.colorIdx)}</td><td><span class="c-green">${done}</span></td><td>${pend}</td></tr>`;
+        }).join('')}</tbody></table></div>`;
+      const projects={};
+      tArr.forEach(t=>{if(!projects[t.code])projects[t.code]={name:t.project,code:t.code,tasks:[]};projects[t.code].tasks.push(t);});
+      document.getElementById('dash-projects').innerHTML=Object.values(projects).slice(0,9).map(p=>{
+        const done=p.tasks.filter(t=>t.status==='Completed').length;
+        const pct=Math.round(done/p.tasks.length*100);
+        return`<div class="card" style="cursor:pointer;margin:0;" onclick="showPage('tasks');document.getElementById('f-project').value='${p.name}';filterTasks()">
+          <div style="font-size:13px;font-weight:600;">${p.name}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">#${p.code} · ${done}/${p.tasks.length} done</div>
+          <div class="pbar"><div class="pbar-fill" style="width:${pct}%;"></div></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">${pct}%</div>
+        </div>`;
+      }).join('');
+    });
+  });
+}
+
+// ===================== ALL TASKS =====================
+const COMMON_SCOPES = [
+  'Layout Plans','3D Exterior Model','3D Exterior Renders','3D Interior Model','3D Interior Renders',
+  'Arch Working Drawings','Interior Working Drawings','NLC Submission Drawings','Moodboard',
+  'Landscaping','Structure Design','Exterior Animation','Interior Animation','3D Walkthrough',
+  'Furniture Layout','Electrical Layout','Plumbing Layout','Ceiling Design','Site Visit Report',
+];
+
+function populateAssignDropdowns(){
+  getData('members',members=>{
+    const mArr=members?Object.values(members):[];
+    ['f-member','a-assignee'].forEach(id=>{
+      const el=document.getElementById(id);if(!el)return;
+      const cur=el.value;
+      el.innerHTML=id==='f-member'?'<option value="">All members</option>':'<option value="">Select member...</option>';
+      mArr.forEach(m=>{const o=document.createElement('option');o.value=m.name;o.textContent=`${m.name} — ${m.role}`;el.appendChild(o);});
+      el.value=cur;
+    });
+  });
+  getData('tasks',tasks=>{
+    const tArr=tasks?Object.values(tasks):[];
+    const projects=[...new Set(tArr.map(t=>t.project))];
+    // Filter project dropdown only
+    const fpEl=document.getElementById('f-project');
+    if(fpEl){const cur=fpEl.value;fpEl.innerHTML='<option value="">All projects</option>';projects.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;fpEl.appendChild(o);});fpEl.value=cur;}
+    // Assign project dropdown: existing projects + "New project..." option
+    const apEl=document.getElementById('a-project');
+    if(apEl){const cur=apEl.value;apEl.innerHTML='<option value="">Select existing project...</option>';projects.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;apEl.appendChild(o);});const newOpt=document.createElement('option');newOpt.value='__new__';newOpt.textContent='+ New project (type name below)';apEl.appendChild(newOpt);apEl.value=cur;}
+    // Scope chips
+    const chipsEl=document.getElementById('scope-chips');
+    if(chipsEl){
+      const extraScopes=[...new Set(tArr.map(t=>t.scope))].filter(s=>!COMMON_SCOPES.includes(s));
+      const allScopes=[...COMMON_SCOPES,...extraScopes];
+      chipsEl.innerHTML=allScopes.map(s=>`<button type="button" onclick="pickScope('${s.replace(/'/g,"\\'")}')" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surf2);font-size:12px;cursor:pointer;color:var(--text2);transition:all .15s;" onmouseover="this.style.background='var(--blue-bg)';this.style.borderColor='var(--blue)';this.style.color='var(--blue-t)';" onmouseout="this.style.background='var(--surf2)';this.style.borderColor='var(--border2)';this.style.color='var(--text2)';">${s}</button>`).join('');
+    }
+  });
+}
+
+function pickScope(scope){
+  const el=document.getElementById('a-task-desc');
+  if(el){el.value=scope;el.focus();}
+}
+
+function onProjectChange(){
+  const val=document.getElementById('a-project').value;
+  const wrap=document.getElementById('a-project-new-wrap');
+  if(val==='__new__'){wrap.style.display='block';document.getElementById('a-project-new').focus();}
+  else{wrap.style.display='none';}
+}
+
+function cancelNewProject(){
+  document.getElementById('a-project').value='';
+  document.getElementById('a-project-new-wrap').style.display='none';
+  document.getElementById('a-project-new').value='';
+}
+
+function renderAllTasks(){
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const mMap={};
+      if(members)Object.values(members).forEach(m=>mMap[m.name]=m);
+      const tArr=tasks?Object.values(tasks):[];
+      const q=(document.getElementById('task-search')||{}).value?.toLowerCase()||'';
+      const fs=(document.getElementById('f-status')||{}).value||'';
+      const fm=(document.getElementById('f-member')||{}).value||'';
+      const fp=(document.getElementById('f-priority')||{}).value||'';
+      const fpr=(document.getElementById('f-project')||{}).value||'';
+      const filtered=tArr.filter(t=>{
+        if(q&&!`${t.id} ${t.project} ${t.scope} ${t.assignee} ${t.client}`.toLowerCase().includes(q))return false;
+        if(fs&&t.status!==fs)return false;
+        if(fm&&t.assignee!==fm)return false;
+        if(fp&&t.priority!==fp)return false;
+        if(fpr&&t.project!==fpr)return false;
+        return true;
+      });
+      document.getElementById('task-tbody').innerHTML=filtered.length?filtered.map(t=>{
+        const m=mMap[t.assignee];
+        return`<tr style="cursor:pointer;" onclick="openTaskDetail('${t.id}')">
+          <td style="font-family:monospace;font-size:11px;color:var(--text3);">${t.id}</td>
+          <td><div style="font-weight:500;">${t.project}</div><div style="font-size:11px;color:var(--text3);">${t.client||''}</div></td>
+          <td style="max-width:200px;">${t.scope}${t.alert?` <span class="badge b-overdue" style="font-size:10px;">${t.alert}</span>`:''}</td>
+          <td>${t.assignee?memberAvatarWithName(t.assignee,m?.colorIdx):'<span style="font-size:12px;color:var(--text3);">Unassigned</span>'}</td>
+          <td>${priorityBadge(t.priority)}</td>
+          <td>${statusBadge(t.status)}</td>
+          <td style="text-align:right;">${t.estHours||'—'}h</td>
+          <td><button class="btn btn-sm" onclick="event.stopPropagation();openTaskDetail('${t.id}')">View</button></td>
+        </tr>`;
+      }).join(''):`<tr><td colspan="8"><div class="empty"><div class="empty-icon">🔍</div><div>No tasks match filters</div></div></td></tr>`;
+    });
+  });
+}
+function filterTasks(){renderAllTasks();}
+
+// ===================== TASK DETAIL MODAL =====================
+function openTaskDetail(taskId){
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const t=tasks&&tasks[taskId];if(!t)return;
+      const mArr=members?Object.values(members):[];
+      const mMap={};if(members)Object.values(members).forEach(m=>mMap[m.name]=m);
+      document.getElementById('tdm-title').textContent=t.scope;
+      document.getElementById('tdm-body').innerHTML=`
+        <div class="detail-row"><div class="detail-label">Task ID</div><div>${t.id}</div></div>
+        <div class="detail-row"><div class="detail-label">Project</div><div><strong>${t.project}</strong> (#${t.code})</div></div>
+        <div class="detail-row"><div class="detail-label">Client</div><div>${t.client||'—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Location</div><div>${t.location||'—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Scope</div><div>${t.scope}</div></div>
+        <div class="detail-row"><div class="detail-label">Assigned To</div><div>
+          ${currentUser.role==='manager'?`<select class="form-input" id="td-assignee" style="max-width:200px;padding:5px 8px;font-size:12px;">
+            <option value="">Unassigned</option>${mArr.map(m=>`<option value="${m.name}" ${t.assignee===m.name?'selected':''}>${m.name}</option>`).join('')}
+          </select>`:memberAvatarWithName(t.assignee,mMap[t.assignee]?.colorIdx)}
+        </div></div>
+        <div class="detail-row"><div class="detail-label">Status</div><div>${statusBadge(t.status)}</div></div>
+        <div class="detail-row"><div class="detail-label">Priority</div><div>${priorityBadge(t.priority)}</div></div>
+        <div class="detail-row"><div class="detail-label">Deadline</div><div>${t.deadline||'—'}</div></div>
+        <div class="detail-row"><div class="detail-label">Est. Hours</div><div>${t.estHours||'—'}h</div></div>
+        ${t.notes?`<div class="detail-row"><div class="detail-label">Notes</div><div style="font-size:12px;line-height:1.6;">${t.notes}</div></div>`:''}
+        ${t.lastComment?`<div class="detail-row"><div class="detail-label">Last update</div><div style="font-size:12px;color:var(--text2);">${t.lastComment}</div></div>`:''}
+      `;
+      const footer=document.getElementById('tdm-footer');
+      if(currentUser.role==='manager'){
+        footer.innerHTML=`
+          <button class="btn" onclick="closeModal('task-detail-modal')">Close</button>
+          <button class="btn btn-danger btn-sm" onclick="putTaskOnHold('${taskId}')">⏸ On Hold</button>
+          <button class="btn btn-primary" onclick="saveTaskAssignee('${taskId}')">Save Assignee</button>
+        `;
+      }else{
+        footer.innerHTML=`
+          <button class="btn" onclick="closeModal('task-detail-modal')">Close</button>
+          <button class="btn btn-primary" onclick="openStatusModal('${taskId}','${t.scope}','${t.status}')">Update Status</button>
+        `;
+      }
+      openModal('task-detail-modal');
+    });
+  });
+}
+
+function saveTaskAssignee(taskId){
+  const assignee=document.getElementById('td-assignee').value;
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const t=tasks&&tasks[taskId];if(!t)return;
+      const oldAssignee=t.assignee;
+      updateData('tasks/'+taskId,{assignee},()=>{
+        if(assignee&&assignee!==oldAssignee){
+          sendNotification(assignee,'task_assigned',`You have been assigned: ${t.scope} (${t.project})`,taskId,members);
+        }
+        toast('Assignee updated');
+        closeModal('task-detail-modal');
+        renderAllTasks();
+      });
+    });
+  });
+}
+
+function putTaskOnHold(taskId){
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const t=tasks&&tasks[taskId];if(!t)return;
+      updateData('tasks/'+taskId,{status:'On Hold'},()=>{
+        if(t.assignee){
+          sendNotification(t.assignee,'on_hold',`Task put on hold: ${t.scope} (${t.project}). Please check with manager.`,taskId,members);
+          sendEmail(t.assignee,`Task On Hold: ${t.scope}`,[`Your task "${t.scope}" for project ${t.project} has been put on hold.`,'Please contact the manager for further instructions.'],members);
+        }
+        toast('Task put on hold. Team member notified.');
+        closeModal('task-detail-modal');
+        renderAllTasks();renderDashboard();
+      });
+    });
+  });
+}
+
+// ===================== ASSIGN TASK =====================
+function clearAssignForm(){
+  ['a-assignee','a-priority','a-deadline','a-hours','a-notes','a-client','a-location','a-project-new'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('a-task-desc').value='';
+  document.getElementById('a-priority').value='Medium';
+  document.getElementById('a-project').value='';
+  document.getElementById('a-project-new-wrap').style.display='none';
+}
+
+function assignTask(){
+  // Resolve project name: existing selection OR newly typed name
+  const projectSel=document.getElementById('a-project').value;
+  const projectNew=(document.getElementById('a-project-new').value||'').trim();
+  const project=projectSel==='__new__'?projectNew:projectSel;
+  const assignee=document.getElementById('a-assignee').value;
+  const scope=(document.getElementById('a-task-desc').value||'').trim();
+  const priority=document.getElementById('a-priority').value;
+  const deadline=document.getElementById('a-deadline').value;
+  const hours=document.getElementById('a-hours').value;
+  const notes=(document.getElementById('a-notes').value||'').trim();
+  const client=(document.getElementById('a-client').value||'').trim();
+  const location=(document.getElementById('a-location').value||'').trim();
+  if(!project){toast('Please select or type a project name.');document.getElementById(projectSel==='__new__'?'a-project-new':'a-project').focus();return;}
+  if(!scope){toast('Please describe the task scope.');document.getElementById('a-task-desc').focus();return;}
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const tArr=tasks?Object.values(tasks):[];
+      const newId='T'+String(tArr.length+200).padStart(3,'0')+'_'+Date.now().toString().slice(-4);
+      const newTask={id:newId,code:'NEW',project,client,location,type:'',scope,assignee,priority,estHours:hours?parseInt(hours):0,status:'Pending',alert:'',deadline,notes,createdAt:Date.now(),createdBy:'Manager'};
+      setData('tasks/'+newId,newTask,()=>{
+        if(assignee){
+          sendNotification(assignee,'task_assigned',`New task assigned: ${scope} (${project})`,newId,members);
+          sendEmail(assignee,`New Task Assigned: ${scope}`,[
+            `Assalam o Alaikum ${assignee.split(' ')[0]}!`,
+            `You have been assigned a new task by the manager.`,
+            `Task: ${scope}`,`Project: ${project}`,
+            client?`Client: ${client}`:'',
+            location?`Location: ${location}`:'',
+            `Priority: ${priority}`,
+            deadline?`Deadline: ${deadline}`:'',
+            notes?`Instructions: ${notes}`:'',
+            `Please confirm receipt.\n\nJazakAllah\nMr. Abid (SEECA)`,
+          ],members);
+        }
+        toast('Task assigned'+(assignee?' & notification sent!':'!'));
+        // Auto-refresh project dropdown to include new project
+        populateAssignDropdowns();
+        clearAssignForm();
+        renderAllTasks();renderDashboard();
+      });
+    });
+  });
+}
+
+function openAssignModal(){showPage('assign');}
+
+// ===================== MY TASKS (team member) =====================
+function renderMyTasks(){
+  getData('tasks',tasks=>{
+    const tArr=tasks?Object.values(tasks):[];
+    const mine=tArr.filter(t=>t.assignee===currentUser.name);
+    const fs=(document.getElementById('mt-status')||{}).value||'';
+    const fp=(document.getElementById('mt-priority')||{}).value||'';
+    const filtered=mine.filter(t=>{
+      if(fs&&t.status!==fs)return false;
+      if(fp&&t.priority!==fp)return false;
+      return true;
+    });
+    const el=document.getElementById('my-tasks-list');
+    const countEl=document.getElementById('my-task-count');
+    if(countEl)countEl.textContent=`${filtered.length} task${filtered.length!==1?'s':''}`;
+    if(!filtered.length){el.innerHTML=`<div class="empty"><div class="empty-icon">✅</div><div>No tasks found</div></div>`;return;}
+    const newTaskIds=lsGet('new_tasks_'+currentUser.id)||[];
+    el.innerHTML=filtered.map(t=>{
+      const isNew=newTaskIds.includes(t.id);
+      return`<div class="task-card ${t.alert==='Overdue'?'urgent':isNew?'new-task':''}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+          <div>
+            <div style="font-size:14px;font-weight:500;">${t.scope}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">${t.project}${t.client?' · '+t.client:''}</div>
+          </div>
+          ${isNew?'<span class="badge b-inprogress" style="font-size:10px;flex-shrink:0;">New</span>':''}
+        </div>
+        <div class="task-meta">
+          ${statusBadge(t.status)}${priorityBadge(t.priority)}
+          ${t.deadline?`<span style="font-size:12px;color:var(--text3);">📅 ${t.deadline}</span>`:''}
+          ${t.estHours?`<span style="font-size:12px;color:var(--text3);">⏱ ${t.estHours}h</span>`:''}
+        </div>
+        ${t.notes?`<div style="font-size:12px;color:var(--text2);background:var(--surf2);border-radius:6px;padding:8px;margin-top:8px;line-height:1.6;">📌 ${t.notes}</div>`:''}
+        ${t.lastComment?`<div style="font-size:12px;color:var(--text3);margin-top:6px;">💬 ${t.lastComment}</div>`:''}
+        <div class="task-actions">
+          <button class="btn btn-sm btn-primary" onclick="openStatusModal('${t.id}','${t.scope.replace(/'/g,"\\'")}','${t.status}')">Update Status</button>
+          <button class="btn btn-sm" onclick="openTaskDetail('${t.id}')">View Details</button>
+        </div>
+      </div>`;
+    }).join('');
+    lsSet('new_tasks_'+currentUser.id,[]);
+  });
+}
+
+// ===================== STATUS UPDATE MODAL =====================
+function openStatusModal(taskId,taskName,currentStatus){
+  statusModalTaskId=taskId;
+  document.getElementById('sm-task-name').textContent=taskName;
+  document.getElementById('sm-comment').value='';
+  const btns=document.getElementById('sm-status-btns');
+  btns.innerHTML=TASK_STATUSES.map(s=>`<button class="status-btn ${s===currentStatus?'active-status':''}" onclick="selectStatus(this,'${s}')">${s}</button>`).join('');
+  openModal('status-modal');
+}
+function selectStatus(btn,status){
+  document.querySelectorAll('#sm-status-btns .status-btn').forEach(b=>b.classList.remove('active-status'));
+  btn.classList.add('active-status');
+}
+function submitStatusUpdate(){
+  const activeBtn=document.querySelector('#sm-status-btns .active-status');
+  if(!activeBtn){toast('Please select a status.');return;}
+  const newStatus=activeBtn.textContent;
+  const comment=document.getElementById('sm-comment').value.trim();
+  getData('tasks',tasks=>{
+    const t=tasks&&tasks[statusModalTaskId];if(!t)return;
+    const updates={status:newStatus};
+    if(comment)updates.lastComment=`${currentUser.name}: ${comment}`;
+    updateData('tasks/'+statusModalTaskId,updates,()=>{
+      sendNotificationToManager('status_update',`${currentUser.name} updated "${t.scope}" → ${newStatus}${comment?' — '+comment:''}`,statusModalTaskId);
+      toast('Status updated!');
+      closeModal('status-modal');
+      renderMyTasks();
+    });
+  });
+}
+
+// ===================== TEAM MANAGEMENT =====================
+function renderTeamList(){
+  getData('members',members=>{
+    const mArr=members?Object.values(members):[];
+    document.getElementById('team-count-label').textContent=`${mArr.length} team member${mArr.length!==1?'s':''}`;
+    getData('tasks',tasks=>{
+      const tArr=tasks?Object.values(tasks):[];
+      document.getElementById('team-list').innerHTML=mArr.map(m=>{
+        const mt=tArr.filter(t=>t.assignee===m.name);
+        const done=mt.filter(t=>t.status==='Completed').length;
+        const pend=mt.filter(t=>t.status!=='Completed').length;
+        return`<div class="member-card">
+          ${avatarHtml(m.name,m.colorIdx,38)}
+          <div class="member-info">
+            <div class="member-name">${m.name}</div>
+            <div class="member-role-label">${m.role} · ${m.team}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">${m.email||'No email'} · PIN: ${m.pin} · ✅ ${done} done · ⏳ ${pend} pending</div>
+          </div>
+          <div class="member-actions">
+            <button class="btn btn-sm" onclick="openEditMember('${m.id}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="removeMember('${m.id}','${m.name}')">Remove</button>
+          </div>
+        </div>`;
+      }).join('');
+    });
+  });
+}
+
+function openAddMemberModal(){
+  editingMemberId=null;
+  document.getElementById('mm-title').textContent='Add team member';
+  ['mm-name','mm-role','mm-email','mm-pin'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mm-team').value='Architecture';
+  document.getElementById('mm-err').style.display='none';
+  openModal('member-modal');
+}
+
+function openEditMember(memberId){
+  getData('members',members=>{
+    const m=members&&members[memberId];if(!m)return;
+    editingMemberId=memberId;
+    document.getElementById('mm-title').textContent='Edit team member';
+    document.getElementById('mm-name').value=m.name;
+    document.getElementById('mm-role').value=m.role;
+    document.getElementById('mm-team').value=m.team;
+    document.getElementById('mm-email').value=m.email||'';
+    document.getElementById('mm-pin').value=m.pin;
+    document.getElementById('mm-err').style.display='none';
+    openModal('member-modal');
+  });
+}
+
+function saveMember(){
+  const name=document.getElementById('mm-name').value.trim();
+  const role=document.getElementById('mm-role').value.trim();
+  const team=document.getElementById('mm-team').value;
+  const email=document.getElementById('mm-email').value.trim();
+  const pin=document.getElementById('mm-pin').value.trim();
+  const err=document.getElementById('mm-err');
+  if(!name||!role||!pin){err.textContent='Name, role and PIN are required.';err.style.display='block';return;}
+  if(pin.length<4){err.textContent='PIN must be at least 4 digits.';err.style.display='block';return;}
+  err.style.display='none';
+  getData('members',members=>{
+    const mArr=members?Object.values(members):[];
+    const colorIdx=mArr.length%AVATAR_COLORS.length;
+    if(editingMemberId){
+      updateData('members/'+editingMemberId,{name,role,team,email,pin},()=>{toast('Member updated');closeModal('member-modal');renderTeamList();populateAssignDropdowns();});
+    }else{
+      const newId='M'+String(mArr.length+1).padStart(2,'0')+'_'+Date.now();
+      setData('members/'+newId,{id:newId,name,role,team,email,pin,colorIdx},()=>{toast('Member added');closeModal('member-modal');renderTeamList();populateAssignDropdowns();});
+    }
+  });
+}
+
+function removeMember(memberId,name){
+  if(!confirm(`Remove ${name} from the team? Their task assignments will remain.`))return;
+  getData('members',members=>{
+    const m=members&&{...members};
+    if(m)delete m[memberId];
+    setData('members',m,()=>{toast(`${name} removed`);renderTeamList();populateAssignDropdowns();});
+  });
+}
+
+// ===================== NOTIFICATIONS =====================
+function sendNotification(memberName,type,message,taskId,members){
+  const mArr=members?Object.values(members):[];
+  const m=mArr.find(x=>x.name===memberName);
+  if(!m)return;
+  const notif={type,message,taskId,forMember:m.id,forName:memberName,fromName:'Manager',read:false,time:Date.now()};
+  pushData('notifications',notif);
+  const newTasks=lsGet('new_tasks_'+m.id)||[];
+  if(taskId&&!newTasks.includes(taskId))newTasks.push(taskId);
+  lsSet('new_tasks_'+m.id,newTasks);
+}
+
+function sendNotificationToManager(type,message,taskId){
+  const notif={type,message,taskId,forMember:'MGR',forName:'Manager',fromName:currentUser.name,read:false,time:Date.now()};
+  pushData('notifications',notif);
+}
+
+function loadNotificationsForUser(){
+  listenData('notifications',notifs=>{
+    if(!notifs)return;
+    const mine=Object.values(notifs).filter(n=>n.forMember===currentUser.id&&!n.read);
+    const badge=document.getElementById('nav-notif-badge');
+    const dot=document.getElementById('notif-dot');
+    if(mine.length>0){if(badge){badge.textContent=mine.length;badge.style.display='inline';}if(dot)dot.classList.add('show');}
+    else{if(badge)badge.style.display='none';if(dot)dot.classList.remove('show');}
+  });
+}
+
+function updateNotifBadge(){
+  getData('notifications',notifs=>{
+    if(!notifs)return;
+    const who=currentUser.role==='manager'?'MGR':currentUser.id;
+    const unread=Object.values(notifs).filter(n=>n.forMember===who&&!n.read);
+    const badge=document.getElementById('nav-notif-badge');
+    const dot=document.getElementById('notif-dot');
+    if(unread.length>0){if(badge){badge.textContent=unread.length;badge.style.display='inline';}if(dot)dot.classList.add('show');}
+    else{if(badge)badge.style.display='none';if(dot)dot.classList.remove('show');}
+  });
+}
+
+function markNotificationsViewed(){
+  getData('notifications',notifs=>{
+    if(!notifs)return;
+    const updates={};
+    Object.entries(notifs).forEach(([k,n])=>{if(n.forMember===currentUser.id)updates[k+'/read']=true;});
+    if(Object.keys(updates).length&&DB&&!OFFLINE)DB.ref('notifications').update(updates);
+  });
+}
+
+function renderNotifications(){
+  getData('notifications',notifs=>{
+    const who=currentUser.role==='manager'?'MGR':currentUser.id;
+    const arr=notifs?Object.entries(notifs).filter(([k,n])=>n.forMember===who).sort((a,b)=>b[1].time-a[1].time):[];
+    document.getElementById('notif-count-label').textContent=`${arr.length} notification${arr.length!==1?'s':''}`;
+    const typeIcon={task_assigned:'📋',status_update:'🔄',on_hold:'⏸',general:'🔔'};
+    document.getElementById('notif-list').innerHTML=arr.length?`<div class="notif-panel">`+arr.map(([k,n])=>`
+      <div class="notif-item ${n.read?'':'unread'}">
+        <div style="font-size:18px;">${typeIcon[n.type]||'🔔'}</div>
+        <div class="notif-text">
+          <div>${n.message}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">From: ${n.fromName}</div>
+        </div>
+        <div class="notif-time">${formatTime(n.time)}</div>
+      </div>`).join('')+'</div>':`<div class="empty"><div class="empty-icon">🔔</div><div>No notifications</div></div>`;
+    if(DB&&!OFFLINE){const updates={};arr.forEach(([k,n])=>{if(!n.read)updates[k+'/read']=true;});if(Object.keys(updates).length)DB.ref('notifications').update(updates);}
+    updateNotifBadge();
+  });
+}
+
+function markAllRead(){
+  getData('notifications',notifs=>{
+    if(!notifs)return;
+    const who=currentUser.role==='manager'?'MGR':currentUser.id;
+    if(DB&&!OFFLINE){const updates={};Object.entries(notifs).forEach(([k,n])=>{if(n.forMember===who)updates[k+'/read']=true;});DB.ref('notifications').update(updates).then(()=>{toast('All marked read');renderNotifications();});}
+    else{const d=lsGet('notifications')||{};Object.keys(d).forEach(k=>{if(d[k].forMember===who)d[k].read=true;});lsSet('notifications',d);toast('All marked read');renderNotifications();}
+  });
+}
+
+function formatTime(ts){const d=new Date(ts);const diff=Date.now()-ts;if(diff<60000)return'Just now';if(diff<3600000)return Math.floor(diff/60000)+'m ago';if(diff<86400000)return Math.floor(diff/3600000)+'h ago';return d.toLocaleDateString();}
+
+// ===================== EMAIL =====================
+function sendEmail(memberName,subject,lines,members){
+  const cfg=lsGet('ejs');if(!cfg||!cfg.pub)return;
+  const mArr=members?Object.values(members):[];
+  const m=mArr.find(x=>x.name===memberName);
+  if(!m||!m.email)return;
+  try{
+    emailjs.init(cfg.pub);
+    emailjs.send(cfg.svc,cfg.tpl,{to_email:m.email,to_name:m.name,subject,message:lines.filter(Boolean).join('\n\n')});
+    toast('Email sent to '+m.name);
+  }catch(e){console.log('EmailJS:',e);}
+}
+
+// ===================== BRIEFING =====================
+function renderBriefing(){
+  getData('tasks',tasks=>{
+    getData('members',members=>{
+      const tArr=tasks?Object.values(tasks):[];
+      const mArr=members?Object.values(members):[];
+      const overdue=tArr.filter(t=>t.alert==='Overdue');
+      const delayed=tArr.filter(t=>t.status==='Delayed');
+      const onhold=tArr.filter(t=>t.status==='On Hold');
+      const review=tArr.filter(t=>t.status==='Submitted for Review');
+      const now=new Date();
+      document.getElementById('briefing-content').innerHTML=`
+        <div class="card">
+          <div style="font-size:16px;font-weight:600;margin-bottom:4px;">Good morning, Mr. Abid 👋</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:16px;">${now.toLocaleDateString('en-PK',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:18px;">
+            <div style="text-align:center;background:var(--red-bg);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:600;color:var(--red);">${overdue.length}</div><div style="font-size:11px;color:var(--red-t);">Overdue</div></div>
+            <div style="text-align:center;background:var(--amber-bg);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:600;color:var(--amber);">${delayed.length}</div><div style="font-size:11px;color:var(--amber-t);">Delayed</div></div>
+            <div style="text-align:center;background:#FFF3CD;border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:600;color:#856404;">${onhold.length}</div><div style="font-size:11px;color:#856404;">On Hold</div></div>
+            <div style="text-align:center;background:var(--purple-bg);border-radius:8px;padding:12px;"><div style="font-size:22px;font-weight:600;color:var(--purple);">${review.length}</div><div style="font-size:11px;color:var(--purple-t);">In Review</div></div>
+          </div>
+          ${overdue.length?`<div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;">🔴 Overdue tasks</div>${overdue.map(t=>`<div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">${t.scope} <span style="color:var(--text3);">— ${t.project}</span> <span style="color:var(--text3);font-size:12px;">${t.assignee||'Unassigned'}</span></div>`).join('')}`:''}
+          ${delayed.length?`<div style="font-size:12px;font-weight:600;color:var(--amber);margin:12px 0 8px;">🟡 Delayed tasks</div>${delayed.map(t=>`<div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">${t.scope} <span style="color:var(--text3);">— ${t.project}</span> <span style="color:var(--text3);font-size:12px;">${t.assignee||'Unassigned'}</span></div>`).join('')}`:''}
+          ${review.length?`<div style="font-size:12px;font-weight:600;color:var(--purple);margin:12px 0 8px;">🔵 Awaiting your review</div>${review.map(t=>`<div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--border);">${t.scope} <span style="color:var(--text3);">— ${t.project}</span> <span style="color:var(--text3);font-size:12px;">${t.assignee||'Unassigned'}</span></div>`).join('')}`:''}
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin:12px 0 8px;">👥 Team performance</div>
+          ${mArr.map(m=>{const mt=tArr.filter(t=>t.assignee===m.name);const done=mt.filter(t=>t.status==='Completed').length;const pct=mt.length?Math.round(done/mt.length*100):0;return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">${avatarHtml(m.name,m.colorIdx)}<div style="flex:1;"><div style="font-size:12px;font-weight:500;">${m.name}</div><div class="pbar"><div class="pbar-fill" style="width:${pct}%;"></div></div></div><div style="font-size:12px;color:var(--text3);white-space:nowrap;">${done}/${mt.length} · ${pct}%</div></div>`;}).join('')}
+        </div>
+      `;
+    });
+  });
+}
+
+// ===================== SETTINGS =====================
+function loadSettings(){
+  const cfg=lsGet('ejs')||{};
+  document.getElementById('s-ejs-pub').value=cfg.pub||'';
+  document.getElementById('s-ejs-svc').value=cfg.svc||'';
+  document.getElementById('s-ejs-tpl').value=cfg.tpl||'';
+  // Pre-fill Firebase fields if already saved
+  const fb=lsGet('fb_config')||{};
+  document.getElementById('s-fb-apiKey').value=fb.apiKey||'';
+  document.getElementById('s-fb-authDomain').value=fb.authDomain||'';
+  document.getElementById('s-fb-databaseURL').value=fb.databaseURL||'';
+  document.getElementById('s-fb-projectId').value=fb.projectId||'';
+  // Show current connection status
+  const banner=document.getElementById('fb-status-banner');
+  if(fb.apiKey&&DB&&!OFFLINE){
+    banner.style.display='block';banner.style.background='var(--green-bg)';banner.style.color='var(--green-t)';
+    banner.textContent='✅ Firebase is connected and syncing live.';
+  } else if(fb.apiKey&&OFFLINE){
+    banner.style.display='block';banner.style.background='var(--amber-bg)';banner.style.color='var(--amber-t)';
+    banner.textContent='⚠️ Firebase config saved but running offline. Click Save & Connect to reconnect.';
+  } else {
+    banner.style.display='block';banner.style.background='var(--surf2)';banner.style.color='var(--text3)';
+    banner.textContent='Firebase not connected — running in offline/local mode.';
+  }
+}
+
+function saveAndConnectFirebase(){
+  const apiKey=document.getElementById('s-fb-apiKey').value.trim();
+  const authDomain=document.getElementById('s-fb-authDomain').value.trim();
+  const databaseURL=document.getElementById('s-fb-databaseURL').value.trim();
+  const projectId=document.getElementById('s-fb-projectId').value.trim();
+  const banner=document.getElementById('fb-status-banner');
+  if(!apiKey||!databaseURL){
+    banner.style.display='block';banner.style.background='var(--red-bg)';banner.style.color='var(--red-t)';
+    banner.textContent='❌ API Key and Database URL are required.';return;
+  }
+  if(!databaseURL.startsWith('https://')){
+    banner.style.display='block';banner.style.background='var(--red-bg)';banner.style.color='var(--red-t)';
+    banner.textContent='❌ Database URL must start with https://';return;
+  }
+  banner.style.display='block';banner.style.background='var(--blue-bg)';banner.style.color='var(--blue-t)';
+  banner.textContent='🔄 Connecting to Firebase...';
+  try{
+    // Try to reuse existing app or init new one
+    let app;
+    try{ app=firebase.app('seeca'); }
+    catch(e){ app=firebase.initializeApp({apiKey,authDomain,databaseURL,projectId},'seeca'); }
+    const newDB=firebase.database(app);
+    // Test with a small read
+    newDB.ref('.info/connected').once('value', snap=>{
+      DB=newDB; OFFLINE=false;
+      lsSet('fb_config',{apiKey,authDomain,databaseURL,projectId});
+      lsSet('offline',false);
+      banner.style.background='var(--green-bg)';banner.style.color='var(--green-t)';
+      banner.textContent='✅ Firebase connected successfully! Data is now syncing live.';
+      toast('Firebase connected! Real-time sync is now active.');
+      // Migrate any local data to Firebase
+      migrateLocalDataToFirebase();
+    }, err=>{
+      banner.style.background='var(--red-bg)';banner.style.color='var(--red-t)';
+      banner.textContent='❌ Connection failed: '+err.message+'. Check your Database URL and rules.';
+    });
+  }catch(e){
+    banner.style.display='block';banner.style.background='var(--red-bg)';banner.style.color='var(--red-t)';
+    banner.textContent='❌ Error: '+e.message;
+  }
+}
+
+function testFirebaseConnection(){
+  const databaseURL=document.getElementById('s-fb-databaseURL').value.trim();
+  const banner=document.getElementById('fb-status-banner');
+  if(!databaseURL){banner.style.display='block';banner.style.background='var(--red-bg)';banner.style.color='var(--red-t)';banner.textContent='❌ Please enter the Database URL first.';return;}
+  banner.style.display='block';banner.style.background='var(--blue-bg)';banner.style.color='var(--blue-t)';
+  banner.textContent='🔄 Testing... (click Save & Connect after this)';
+  if(DB&&!OFFLINE){banner.style.background='var(--green-bg)';banner.style.color='var(--green-t)';banner.textContent='✅ Already connected to Firebase!';}
+  else{banner.style.background='var(--amber-bg)';banner.style.color='var(--amber-t)';banner.textContent='⚠️ Not connected yet. Fill all 4 fields and click Save & Connect.';}
+}
+
+function migrateLocalDataToFirebase(){
+  // Push any locally stored tasks/members/notifications to Firebase
+  const localTasks=lsGet('tasks');
+  const localMembers=lsGet('members');
+  if(localMembers&&DB){
+    DB.ref('members').once('value',snap=>{
+      if(!snap.val()){DB.ref('members').set(localMembers);}
+    });
+  }
+  if(localTasks&&DB){
+    DB.ref('tasks').once('value',snap=>{
+      if(!snap.val()){DB.ref('tasks').set(localTasks);}
+    });
+  }
+}
+function changeManagerPassword(){
+  const p1=document.getElementById('new-mgr-pass').value;
+  const p2=document.getElementById('new-mgr-pass2').value;
+  if(!p1){toast('Enter a new password.');return;}
+  if(p1!==p2){toast('Passwords do not match.');return;}
+  lsSet('mgr_pass',btoa(p1));toast('Password changed.');
+}
+function saveEmailJSSettings(){
+  const pub=document.getElementById('s-ejs-pub').value.trim();
+  const svc=document.getElementById('s-ejs-svc').value.trim();
+  const tpl=document.getElementById('s-ejs-tpl').value.trim();
+  lsSet('ejs',{pub,svc,tpl});toast('EmailJS settings saved.');
+}
+function resetApp(){
+  if(!confirm('This will delete ALL data. Are you sure?'))return;
+  ['setup_done','mgr_pass','offline','fb_config','ejs','members','tasks','notifications'].forEach(k=>localStorage.removeItem('seeca_'+k));
+  location.reload();
+}
+
+// Close modals on overlay click
+['assign-modal','task-detail-modal','member-modal','status-modal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
+});
+</script>
+</body>
+</html>
