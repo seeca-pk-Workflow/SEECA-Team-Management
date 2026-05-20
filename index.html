@@ -767,22 +767,63 @@ function finishSetup(){
   });
 }
 
+// ===================== HARDCODED CONFIG =====================
+// Firebase and manager config are embedded here so every device
+// goes straight to login without any setup wizard.
+// TO UPDATE: Manager can change password from Settings after logging in.
+const HARDCODED_FB = {
+  apiKey:      "AIzaSyAZV1e2120SLkbKvePmy4Ncr5fdUDsk6VM",
+  authDomain:  "seeca-agent.firebaseapp.com",
+  databaseURL: "https://seeca-agent-default-rtdb.firebaseio.com",
+  projectId:   "seeca-agent",
+};
+const HARDCODED_MGR_PASS = "U2VlY2FANzg2";
+
 // ===================== BOOT =====================
 window.addEventListener('load',()=>{
-  const setupDone=lsGet('setup_done');
-  const offline=lsGet('offline');
-  const fbConfig=lsGet('fb_config');
+  // Always try hardcoded Firebase first
+  const fbCfg = HARDCODED_FB.apiKey.includes('PASTE') ? lsGet('fb_config') : HARDCODED_FB;
+  const offline = lsGet('offline');
 
-  if(fbConfig&&!offline){
+  if(fbCfg && fbCfg.apiKey && !offline){
     try{
-      const app=firebase.initializeApp(fbConfig,'seeca');
+      let app;
+      try{ app=firebase.app('seeca'); }
+      catch(e){ app=firebase.initializeApp(fbCfg,'seeca'); }
       DB=firebase.database(app);
-    }catch(e){}
+      lsSet('fb_config',fbCfg);
+    }catch(e){ console.log('FB init:',e); }
   }
-  if(offline)OFFLINE=true;
+  if(offline) OFFLINE=true;
 
-  if(!setupDone){showScreen('setup');}
-  else{showScreen('login');}
+  // Set hardcoded manager password if not already set locally
+  if(!lsGet('mgr_pass') && !HARDCODED_MGR_PASS.includes('PASTE')){
+    lsSet('mgr_pass', HARDCODED_MGR_PASS);
+  }
+
+  // Mark setup as done always — skip wizard for all devices
+  lsSet('setup_done', true);
+
+  // Seed members and tasks if Firebase is empty
+  if(DB){
+    DB.ref('members').once('value', snap=>{
+      if(!snap.val()){
+        const obj={};SEED_MEMBERS.forEach(m=>{obj[m.id]=m;});
+        DB.ref('members').set(obj);
+      }
+    });
+    DB.ref('tasks').once('value', snap=>{
+      if(!snap.val()){
+        const obj={};SEED_TASKS.forEach(t=>{obj[t.id]=t;});
+        DB.ref('tasks').set(obj);
+      }
+    });
+  } else {
+    if(!lsGet('members')){const o={};SEED_MEMBERS.forEach(m=>{o[m.id]=m;});lsSet('members',o);}
+    if(!lsGet('tasks')){const o={};SEED_TASKS.forEach(t=>{o[t.id]=t;});lsSet('tasks',o);}
+  }
+
+  showScreen('login');
 });
 
 // ===================== SCREEN MANAGEMENT =====================
@@ -1606,7 +1647,10 @@ function changeManagerPassword(){
   const p2=document.getElementById('new-mgr-pass2').value;
   if(!p1){toast('Enter a new password.');return;}
   if(p1!==p2){toast('Passwords do not match.');return;}
-  lsSet('mgr_pass',btoa(p1));toast('Password changed.');
+  lsSet('mgr_pass',btoa(p1));
+  // Show the encoded value so it can be hardcoded in the file
+  toast('Password changed. Encoded: '+btoa(p1));
+  console.log('Manager pass encoded (copy this into HARDCODED_MGR_PASS):', btoa(p1));
 }
 function saveEmailJSSettings(){
   const pub=document.getElementById('s-ejs-pub').value.trim();
