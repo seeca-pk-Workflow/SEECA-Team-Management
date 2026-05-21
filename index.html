@@ -558,7 +558,18 @@ textarea.form-input{resize:vertical;min-height:80px;font-family:inherit;}
     </div>
   </div>
 </div>
-
+<!-- DELETE PROJECT MODAL -->
+<div id="del-proj-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div style="background:var(--surf);border-radius:14px;padding:28px 26px;width:400px;max-width:95vw;">
+    <div style="width:44px;height:44px;border-radius:50%;background:var(--red-bg);display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:22px;">🗑️</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px;color:var(--red-t);">Delete project?</div>
+    <div id="del-proj-desc" style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:20px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-sm" onclick="closeDelModal()">Cancel</button>
+      <button class="btn btn-sm btn-danger" onclick="confirmDelProject()">🗑 Delete project &amp; tasks</button>
+    </div>
+  </div>
+</div>
 <!-- ASSIGN TASK MODAL -->
 <div class="modal-overlay" id="assign-modal">
   <div class="modal">
@@ -1027,7 +1038,27 @@ function renderDashboard(){
       document.getElementById('dash-projects').innerHTML=Object.values(projects).slice(0,9).map(p=>{
         const done=p.tasks.filter(t=>t.status==='Completed').length;
         const pct=Math.round(done/p.tasks.length*100);
-        return`<div class="card" style="cursor:pointer;margin:0;" onclick="showPage('tasks');document.getElementById('f-project').value='${p.name}';filterTasks()">
+        const sn=p.name.replace(/'/g,"\\'");
+return`<div class="card" style="margin:0;position:relative;">
+  <div style="display:flex;align-items:flex-start;gap:8px;">
+    <div style="flex:1;cursor:pointer;" onclick="showPage('tasks');document.getElementById('f-project').value='${sn}';filterTasks()">
+      <div style="font-size:13px;font-weight:600;">${p.name}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">#${p.code} · ${done}/${p.tasks.length} done</div>
+      <div class="pbar"><div class="pbar-fill" style="width:${pct}%;"></div></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">${pct}%</div>
+    </div>
+    <button onclick="openDeleteProjectModal('${sn}');event.stopPropagation();"
+      title="Delete project"
+      style="background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:5px 6px;color:var(--text3);flex-shrink:0;transition:all .15s;"
+      onmouseover="this.style.background='var(--red-bg)';this.style.borderColor='var(--red)';this.style.color='var(--red)';"
+      onmouseout="this.style.background='none';this.style.borderColor='transparent';this.style.color='var(--text3)';">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path>
+        <path d="M10 11v6M14 11v6"></path><path d="M9 6V4h6v2"></path>
+      </svg>
+    </button>
+  </div>
+</div>`;
           <div style="font-size:13px;font-weight:600;">${p.name}</div>
           <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">#${p.code} · ${done}/${p.tasks.length} done</div>
           <div class="pbar"><div class="pbar-fill" style="width:${pct}%;"></div></div>
@@ -1663,290 +1694,46 @@ function resetApp(){
   ['setup_done','mgr_pass','offline','fb_config','ejs','members','tasks','notifications'].forEach(k=>localStorage.removeItem('seeca_'+k));
   location.reload();
 }
-
+// ===================== DELETE PROJECT =====================
+function openDeleteProjectModal(projectName){
+  window._pendingDelProject=projectName;
+  getData('tasks',tasks=>{
+    const tArr=tasks?Object.values(tasks):[];
+    const linked=tArr.filter(t=>t.project===projectName);
+    document.getElementById('del-proj-desc').innerHTML=
+      'Permanently delete project <strong>"'+projectName+'"</strong> and its <strong>'+
+      linked.length+' task'+(linked.length!==1?'s':'')+
+      '</strong>.<br><br><span style="color:var(--red);font-size:12px;">⚠️ This cannot be undone.</span>';
+    document.getElementById('del-proj-modal').style.display='flex';
+  });
+}
+function closeDelModal(){
+  document.getElementById('del-proj-modal').style.display='none';
+  window._pendingDelProject=null;
+}
+function confirmDelProject(){
+  const name=window._pendingDelProject;
+  if(!name)return;
+  closeDelModal();
+  getData('tasks',tasks=>{
+    if(!tasks)return;
+    const keys=Object.keys(tasks).filter(k=>tasks[k]&&tasks[k].project===name);
+    if(DB&&!OFFLINE){
+      keys.forEach(k=>DB.ref('tasks/'+k).remove());
+    }else{
+      const d=lsGet('tasks')||{};
+      keys.forEach(k=>delete d[k]);
+      lsSet('tasks',d);
+    }
+    toast('Project "'+name+'" deleted.');
+    renderDashboard();renderAllTasks();populateAssignDropdowns();
+  });
+}
+document.getElementById('del-proj-modal').addEventListener('click',function(e){if(e.target===this)closeDelModal();});
 // Close modals on overlay click
 ['assign-modal','task-detail-modal','member-modal','status-modal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)closeModal(id);});
 });
 </script>
-  /**
- * ============================================================
- *  SEECA AGENT — DELETE PROJECT PATCH
- *  Drop this entire <script> block into your index.html
- *  just before the closing </body> tag.
- * ============================================================
- *
- *  What it does:
- *  - Adds a 🗑 delete icon next to each project in the
- *    Projects tab (visible only to the Manager).
- *  - Shows a confirmation modal before deleting.
- *  - Deletes from Firebase (if connected) OR localStorage.
- *  - Also removes all tasks linked to that project.
- * ============================================================
- */
-
-(function () {
-
-  /* ── 1. Inject modal HTML ── */
-  const modalHTML = `
-    <div id="seeca-delete-modal" style="
-      display:none; position:fixed; inset:0; z-index:9999;
-      background:rgba(0,0,0,0.45);
-      align-items:center; justify-content:center;">
-      <div style="
-        background:var(--color-background-primary,#fff);
-        border:0.5px solid var(--color-border-tertiary,#ddd);
-        border-radius:12px;
-        padding:1.5rem 1.75rem;
-        max-width:380px; width:90%;
-        box-sizing:border-box;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
-          <span style="
-            width:36px;height:36px;border-radius:50%;
-            background:var(--color-background-danger,#fce8e8);
-            display:flex;align-items:center;justify-content:center;
-            flex-shrink:0;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="var(--color-text-danger,#c0392b)" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6l-1 14H6L5 6"></path>
-              <path d="M10 11v6M14 11v6"></path>
-              <path d="M9 6V4h6v2"></path>
-            </svg>
-          </span>
-          <p style="margin:0;font-size:15px;font-weight:500;
-                    color:var(--color-text-primary);">
-            Delete project?
-          </p>
-        </div>
-        <p id="seeca-delete-desc" style="
-          font-size:13px;
-          color:var(--color-text-secondary,#666);
-          margin:0 0 1.25rem;
-          line-height:1.5;">
-        </p>
-        <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button id="seeca-delete-cancel" style="
-            padding:8px 18px;font-size:13px;cursor:pointer;
-            background:transparent;
-            border:0.5px solid var(--color-border-secondary,#bbb);
-            border-radius:8px;
-            color:var(--color-text-primary);">
-            Cancel
-          </button>
-          <button id="seeca-delete-confirm" style="
-            padding:8px 18px;font-size:13px;cursor:pointer;
-            background:var(--color-background-danger,#fce8e8);
-            border:0.5px solid var(--color-border-danger,#e57373);
-            border-radius:8px;
-            color:var(--color-text-danger,#c0392b);
-            font-weight:500;">
-            Delete project &amp; tasks
-          </button>
-        </div>
-      </div>
-    </div>`;
-
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-  const modal        = document.getElementById('seeca-delete-modal');
-  const cancelBtn    = document.getElementById('seeca-delete-cancel');
-  const confirmBtn   = document.getElementById('seeca-delete-confirm');
-  const descEl       = document.getElementById('seeca-delete-desc');
-
-  let pendingProjectKey  = null;
-  let pendingProjectName = null;
-
-  cancelBtn.addEventListener('click', closeModal);
-  modal.addEventListener('click', function (e) {
-    if (e.target === modal) closeModal();
-  });
-
-  function openModal(key, name) {
-    pendingProjectKey  = key;
-    pendingProjectName = name;
-    descEl.textContent =
-      `"${name}" and all tasks assigned under it will be permanently removed. This cannot be undone.`;
-    modal.style.display = 'flex';
-  }
-
-  function closeModal() {
-    modal.style.display  = 'none';
-    pendingProjectKey    = null;
-    pendingProjectName   = null;
-  }
-
-  /* ── 2. Actual delete logic ── */
-  confirmBtn.addEventListener('click', function () {
-    if (!pendingProjectKey) return;
-
-    const key  = pendingProjectKey;
-    const name = pendingProjectName;
-    closeModal();
-
-    /* ── Firebase path (used when app is connected) ── */
-    if (window.firebaseDB) {
-      try {
-        // Remove the project node
-        window.firebaseDB.ref('projects/' + key).remove();
-
-        // Remove every task that belongs to this project
-        window.firebaseDB.ref('tasks').once('value', function (snap) {
-          const tasks = snap.val() || {};
-          Object.entries(tasks).forEach(function ([taskKey, task]) {
-            if (task && (task.project === name || task.projectKey === key)) {
-              window.firebaseDB.ref('tasks/' + taskKey).remove();
-            }
-          });
-        });
-
-        showToast('Project "' + name + '" deleted.');
-        return;
-      } catch (err) {
-        console.warn('SEECA patch: Firebase delete failed, falling back to localStorage', err);
-      }
-    }
-
-    /* ── localStorage fallback ── */
-    try {
-      // Projects
-      const projectsRaw = localStorage.getItem('seeca_projects') ||
-                          localStorage.getItem('projects') || '{}';
-      const projects = JSON.parse(projectsRaw);
-      delete projects[key];
-      localStorage.setItem(
-        localStorage.getItem('seeca_projects') !== null ? 'seeca_projects' : 'projects',
-        JSON.stringify(projects)
-      );
-
-      // Tasks — remove linked ones
-      ['seeca_tasks', 'tasks'].forEach(function (storageKey) {
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return;
-        const tasks = JSON.parse(raw);
-        let changed = false;
-        Object.keys(tasks).forEach(function (tk) {
-          const t = tasks[tk];
-          if (t && (t.project === name || t.projectKey === key)) {
-            delete tasks[tk];
-            changed = true;
-          }
-        });
-        if (changed) localStorage.setItem(storageKey, JSON.stringify(tasks));
-      });
-
-      showToast('Project "' + name + '" deleted.');
-
-      // Re-render if the app exposes a refresh function
-      if (typeof window.renderProjects  === 'function') window.renderProjects();
-      if (typeof window.loadProjects    === 'function') window.loadProjects();
-      if (typeof window.refreshDashboard === 'function') window.refreshDashboard();
-    } catch (err) {
-      console.error('SEECA patch: localStorage delete failed', err);
-      showToast('Delete failed — check console.', true);
-    }
-  });
-
-  /* ── 3. Toast notification ── */
-  function showToast(message, isError) {
-    const t = document.createElement('div');
-    t.textContent = message;
-    t.style.cssText = `
-      position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-      background:${isError ? 'var(--color-background-danger,#fce8e8)' : '#1a1a1a'};
-      color:${isError ? 'var(--color-text-danger,#c0392b)' : '#fff'};
-      padding:10px 20px; border-radius:8px; font-size:13px;
-      z-index:10000; white-space:nowrap;
-      box-shadow:0 4px 12px rgba(0,0,0,0.15);
-      animation:seeca-fadein .2s ease;`;
-    document.body.appendChild(t);
-    setTimeout(function () { t.remove(); }, 3000);
-  }
-
-  /* ── 4. Watch DOM — inject delete button into project rows ── */
-  function injectDeleteButtons() {
-    /* Works for both list-style rows and card-style tiles */
-
-    /* ── Selector A: table rows with a project name cell ── */
-    document.querySelectorAll('[data-project-key],[data-project-id]').forEach(inject);
-
-    /* ── Selector B: any element whose class suggests a project row/card ── */
-    document.querySelectorAll(
-      '.project-row, .project-item, .project-card, [class*="project-row"], [class*="projectRow"]'
-    ).forEach(inject);
-  }
-
-  function inject(el) {
-    if (el.dataset.seecaDeleteInjected) return;
-    el.dataset.seecaDeleteInjected = 'true';
-
-    const key  = el.dataset.projectKey  || el.dataset.projectId  || guessKey(el);
-    const name = el.dataset.projectName || guessName(el) || key;
-
-    if (!key) return;
-
-    const btn = document.createElement('button');
-    btn.title       = 'Delete project';
-    btn.setAttribute('aria-label', 'Delete project ' + name);
-    btn.style.cssText = `
-      background:transparent;
-      border:none;
-      cursor:pointer;
-      padding:4px 6px;
-      border-radius:6px;
-      color:var(--color-text-secondary,#888);
-      line-height:1;
-      transition:color .15s,background .15s;`;
-    btn.innerHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"></polyline>
-        <path d="M19 6l-1 14H6L5 6"></path>
-        <path d="M10 11v6M14 11v6"></path>
-        <path d="M9 6V4h6v2"></path>
-      </svg>`;
-
-    btn.addEventListener('mouseenter', function () {
-      btn.style.color      = 'var(--color-text-danger,#c0392b)';
-      btn.style.background = 'var(--color-background-danger,#fce8e8)';
-    });
-    btn.addEventListener('mouseleave', function () {
-      btn.style.color      = 'var(--color-text-secondary,#888)';
-      btn.style.background = 'transparent';
-    });
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      openModal(key, name);
-    });
-
-    el.style.position = el.style.position || 'relative';
-    el.appendChild(btn);
-  }
-
-  function guessKey(el) {
-    /* Try common Firebase-key patterns inside the element */
-    const text = el.getAttribute('data-key') ||
-                 el.getAttribute('data-id')  ||
-                 el.id || '';
-    return text.trim() || null;
-  }
-
-  function guessName(el) {
-    const nameEl = el.querySelector('.project-name, [class*="projectName"], strong, b, h3, h4');
-    return nameEl ? nameEl.textContent.trim() : el.textContent.trim().split('\n')[0].trim();
-  }
-
-  /* ── 5. MutationObserver — catches dynamically rendered rows ── */
-  const observer = new MutationObserver(function () {
-    injectDeleteButtons();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  /* Initial pass (for anything already rendered) */
-  injectDeleteButtons();
-
-})();
 </body>
 </html>
