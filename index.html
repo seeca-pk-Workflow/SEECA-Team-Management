@@ -252,15 +252,19 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
         </div>
 
         <div class="page" id="page-tasks">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <div class="filter-row" style="margin:0;">
-              <input type="text" class="form-input" id="task-search" placeholder="Search..." style="width:180px;" oninput="filterTasks()">
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div style="font-size:13px;font-weight:600;color:var(--text2);">All Tasks</div>
+              <button class="btn btn-primary btn-sm" onclick="openAssignModal()">+ Assign Task</button>
+            </div>
+            <div class="filter-row" style="margin:0;flex-wrap:wrap;gap:6px;">
+              <input type="text" class="form-input" id="task-search" placeholder="Search..." style="width:160px;padding:6px 10px;font-size:12px;" oninput="filterTasks()">
               <select class="filter-select" id="f-status" onchange="filterTasks()"><option value="">All status</option><option>Pending</option><option>In Progress</option><option>Completed</option><option>Delayed</option><option>On Hold</option><option>Submitted for Review</option><option>Overdue</option></select>
               <select class="filter-select" id="f-member" onchange="filterTasks()"><option value="">All members</option></select>
               <select class="filter-select" id="f-priority" onchange="filterTasks()"><option value="">All priority</option><option>High</option><option>Medium</option><option>Low</option></select>
               <select class="filter-select" id="f-project" onchange="filterTasks()"><option value="">All projects</option></select>
+              <button class="btn btn-sm" onclick="document.getElementById('task-search').value='';document.getElementById('f-status').value='';document.getElementById('f-member').value='';document.getElementById('f-priority').value='';document.getElementById('f-project').value='';filterTasks();" title="Clear all filters" style="color:var(--text3);">&#10005; Clear</button>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="openAssignModal()">+ Assign Task</button>
           </div>
           <div class="table-wrap"><table><thead><tr><th>ID</th><th>Project</th><th>Task</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Hrs</th><th></th></tr></thead><tbody id="task-tbody"></tbody></table></div>
         </div>
