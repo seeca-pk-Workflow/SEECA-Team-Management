@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SEECA Agent — Team Dashboard</title>
+<title>SEECA Team Management</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
-:root{--bg:#f5f4f0;--surf:#ffffff;--surf2:#f0efe9;--surf3:#e8e7e1;--border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);--text:#1a1a18;--text2:#5a5a56;--text3:#9a9a94;--blue:#185FA5;--blue-bg:#E6F1FB;--blue-t:#0C447C;--green:#3B6D11;--green-bg:#EAF3DE;--green-t:#27500A;--amber:#854F0B;--amber-bg:#FAEEDA;--amber-t:#633806;--red:#A32D2D;--red-bg:#FCEBEB;--red-t:#791F1F;--purple:#534AB7;--purple-bg:#EEEDFE;--purple-t:#3C3489;--teal:#0F6E56;--teal-bg:#E1F5EE;--teal-t:#085041;--r:10px;--rs:6px;}
+:root{--bg:#f5f4f0;--surf:#ffffff;--surf2:#f0efe9;--surf3:#e8e7e1;--border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);--text:#1a1a18;--text2:#5a5a56;--text3:#9a9a94;--blue:#2E8B2E;--blue-bg:#E8F5E8;--blue-t:#1A5C1A;--green:#3B6D11;--green-bg:#EAF3DE;--green-t:#27500A;--amber:#854F0B;--amber-bg:#FAEEDA;--amber-t:#633806;--red:#A32D2D;--red-bg:#FCEBEB;--red-t:#791F1F;--purple:#534AB7;--purple-bg:#EEEDFE;--purple-t:#3C3489;--teal:#0F6E56;--teal-bg:#E1F5EE;--teal-t:#085041;--r:10px;--rs:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;}
 .screen{display:none;min-height:100vh;}.screen.active{display:flex;}
 #screen-login{align-items:center;justify-content:center;flex-direction:column;background:var(--bg);}
 .login-card{background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:36px 32px;width:380px;max-width:95vw;}
 .login-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
-.login-logo-icon{width:44px;height:44px;background:var(--blue);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;}
+.login-logo-icon{width:44px;height:44px;background:#1a1a18;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#4CAF50;font-size:20px;font-weight:700;}
 .login-logo-text{font-size:18px;font-weight:600;}.login-logo-sub{font-size:12px;color:var(--text3);}
 .login-title{font-size:15px;font-weight:600;margin-bottom:4px;}.login-sub{font-size:12px;color:var(--text3);margin-bottom:20px;}
 .form-group{margin-bottom:14px;}.form-label{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:5px;display:block;}
@@ -33,7 +33,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 #screen-app{flex-direction:column;}
 .topbar{background:var(--surf);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .topbar-logo{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;}
-.topbar-logo-icon{width:28px;height:28px;background:var(--blue);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;}
+.topbar-logo-icon{width:28px;height:28px;background:#1a1a18;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#4CAF50;font-size:13px;font-weight:700;}
 .topbar-user{margin-left:auto;display:flex;align-items:center;gap:10px;}.topbar-user-name{font-size:13px;font-weight:500;}.topbar-user-role{font-size:11px;color:var(--text3);}
 .notif-btn{position:relative;background:none;border:1px solid var(--border2);border-radius:var(--rs);width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;}
 .notif-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--red);border-radius:50%;display:none;}.notif-dot.show{display:block;}
@@ -123,7 +123,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
   <div class="setup-card">
     <div class="login-logo">
       <div class="login-logo-icon">S</div>
-      <div><div class="login-logo-text">SEECA Agent</div><div style="font-size:12px;color:var(--text3);">First-time setup</div></div>
+      <div><div class="login-logo-text">SEECA Team Management</div><div style="font-size:12px;color:var(--text3);">First-time setup</div></div>
     </div>
     <div class="setup-step active" id="setup-step-1">
       <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Step 1 — Connect Firebase</div>
@@ -158,7 +158,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
     </div>
     <div class="setup-step" id="setup-step-3">
       <div style="font-size:16px;font-weight:600;margin-bottom:6px;">Step 3 — Set up EmailJS (optional)</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">EmailJS lets SEECA Agent send real emails. <strong>200 free emails/month</strong>.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">EmailJS lets SEECA Team Management send real emails. <strong>200 free emails/month</strong>.</div>
       <div class="form-group"><label class="form-label">EmailJS Public Key</label><input class="form-input" id="ejs-pubkey" placeholder="user_xxxxxxxxx"></div>
       <div class="form-group"><label class="form-label">Service ID</label><input class="form-input" id="ejs-service" placeholder="service_xxxxxxx"></div>
       <div class="form-group"><label class="form-label">Template ID</label><input class="form-input" id="ejs-template" placeholder="template_xxxxxxx"></div>
@@ -170,12 +170,12 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
     </div>
     <div class="setup-step" id="setup-step-4">
       <div style="font-size:16px;font-weight:600;margin-bottom:6px;">&#9989; Setup complete!</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">SEECA Agent is ready.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">SEECA Team Management is ready.</div>
       <div style="background:var(--green-bg);border-radius:var(--rs);padding:14px;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:600;color:var(--green-t);margin-bottom:8px;">Your team's initial PINs:</div>
         <div id="initial-pins" style="font-size:12px;color:var(--green-t);line-height:2;font-family:monospace;"></div>
       </div>
-      <button class="btn btn-primary" onclick="finishSetup()" style="width:100%;">Open SEECA Agent &#8594;</button>
+      <button class="btn btn-primary" onclick="finishSetup()" style="width:100%;">Open SEECA Team Management &#8594;</button>
     </div>
   </div>
 </div>
@@ -185,7 +185,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-icon">S</div>
-      <div><div class="login-logo-text">SEECA Agent</div><div class="login-logo-sub">SEE Consultants &amp; Architects</div></div>
+      <div><div class="login-logo-text">SEECA Team Management</div><div class="login-logo-sub">SEE Consultants &amp; Architects</div></div>
     </div>
     <div id="login-role-select">
       <div class="login-title">Who are you?</div>
@@ -227,7 +227,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
 <!-- MAIN APP SCREEN -->
 <div class="screen" id="screen-app">
   <div class="topbar">
-    <div class="topbar-logo"><div class="topbar-logo-icon">S</div>SEECA Agent</div>
+    <div class="topbar-logo"><div class="topbar-logo-icon">S</div>SEECA Team Management</div>
     <div id="topbar-project" style="font-size:12px;color:var(--text3);"></div>
     <div class="topbar-user">
       <button class="notif-btn" onclick="showPage('notifications')" title="Notifications">&#128276;<span class="notif-dot" id="notif-dot"></span></button>
