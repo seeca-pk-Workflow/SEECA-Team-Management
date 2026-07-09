@@ -119,6 +119,17 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
     </div>
   </div>
 </div>
+<div id="del-task-modal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.45);align-items:center;justify-content:center;">
+  <div style="background:var(--surf);border-radius:14px;padding:28px 26px;width:400px;max-width:95vw;">
+    <div style="width:44px;height:44px;border-radius:50%;background:var(--red-bg);display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:22px;">&#128465;</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px;color:var(--red-t);">Delete task?</div>
+    <div id="del-task-desc" style="font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:20px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-sm" onclick="closeDelTaskModal()">Cancel</button>
+      <button class="btn btn-sm btn-danger" onclick="confirmDelTask()">Yes, Delete Task</button>
+    </div>
+  </div>
+</div>
 
 <!-- SETUP SCREEN -->
 <div class="screen" id="screen-setup">
@@ -555,13 +566,19 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 function openModal(id){document.getElementById(id).classList.add('open');}
 
 // ===================== DELETE PROJECT =====================
-function openDeleteProjectModal(projectName){
-  window._pendingDelProject=projectName;
+function openDeleteProjectModal(key){
+  // key format: "name|code"
+  const sep=key.indexOf('|');
+  const projName=sep>=0?key.substring(0,sep):key;
+  const projCode=sep>=0?key.substring(sep+1):'';
+  window._pendingDelProject={name:projName,code:projCode};
   getData('tasks',function(tasks){
     var tArr=tasks?Object.values(tasks):[];
-    var linked=tArr.filter(function(t){return t.project===projectName;});
+    var linked=tArr.filter(function(t){
+      return projCode&&projCode!=='NEW'?t.code===projCode:t.project===projName;
+    });
     document.getElementById('del-proj-desc').innerHTML=
-      'Permanently delete project <strong>"'+projectName+'"</strong> and its <strong>'+
+      'Permanently delete project <strong>'+(projCode?'#'+projCode+' — ':'')+'"'+projName+'"</strong> and its <strong>'+
       linked.length+' task'+(linked.length!==1?'s':'')+
       '</strong>.<br><br><span style="color:var(--red);font-size:12px;">&#9888; This cannot be undone.</span>';
     document.getElementById('del-proj-modal').style.display='flex';
@@ -572,24 +589,47 @@ function closeDelModal(){
   window._pendingDelProject=null;
 }
 function confirmDelProject(){
-  var name=window._pendingDelProject;
-  if(!name)return;
+  var proj=window._pendingDelProject;
+  if(!proj)return;
   closeDelModal();
   getData('tasks',function(tasks){
     if(!tasks)return;
-    var keys=Object.keys(tasks).filter(function(k){return tasks[k]&&tasks[k].project===name;});
-    if(DB&&!OFFLINE){
-      keys.forEach(function(k){DB.ref('tasks/'+k).remove();});
-    }else{
-      var d=lsGet('tasks')||{};
-      keys.forEach(function(k){delete d[k];});
-      lsSet('tasks',d);
-    }
-    toast('Project "'+name+'" deleted.');
-    renderDashboard();renderAllTasks();populateAssignDropdowns();
+    var keys=Object.keys(tasks).filter(function(k){
+      var t=tasks[k];if(!t)return false;
+      return proj.code&&proj.code!=='NEW'?t.code===proj.code:t.project===proj.name;
+    });
+    if(DB&&!OFFLINE){keys.forEach(function(k){DB.ref('tasks/'+k).remove();});}
+    else{var d=lsGet('tasks')||{};keys.forEach(function(k){delete d[k];});lsSet('tasks',d);}
+    toast('Project "'+(proj.code?'#'+proj.code+' — ':'')+proj.name+'" deleted.');
+    renderDashboard();renderAllTasks();renderProjectsPage();populateAssignDropdowns();
   });
 }
+function openDeleteTaskModal(taskId){
+  window._pendingDelTask=taskId;
+  getData('tasks',function(tasks){
+    var t=tasks&&tasks[taskId];
+    if(!t)return;
+    closeModal('task-detail-modal');
+    document.getElementById('del-task-desc').innerHTML=
+      'Permanently delete task <strong>"'+t.scope+'"</strong>'+(t.project?' from project <strong>'+(t.code&&t.code!=='NEW'?'#'+t.code+' — ':'')+t.project+'</strong>':'')+'.<br><br><span style="color:var(--red);font-size:12px;">&#9888; This cannot be undone.</span>';
+    document.getElementById('del-task-modal').style.display='flex';
+  });
+}
+function closeDelTaskModal(){
+  document.getElementById('del-task-modal').style.display='none';
+  window._pendingDelTask=null;
+}
+function confirmDelTask(){
+  var id=window._pendingDelTask;
+  if(!id)return;
+  closeDelTaskModal();
+  if(DB&&!OFFLINE){DB.ref('tasks/'+id).remove();}
+  else{var d=lsGet('tasks')||{};delete d[id];lsSet('tasks',d);}
+  toast('Task deleted.');
+  renderDashboard();renderAllTasks();renderProjectsPage();populateAssignDropdowns();
+}
 document.getElementById('del-proj-modal').addEventListener('click',function(e){if(e.target===this)closeDelModal();});
+document.getElementById('del-task-modal').addEventListener('click',function(e){if(e.target===this)closeDelTaskModal();});
 
 function renderDashboard(){getData('tasks',tasks=>{getData('members',members=>{const tArr=tasks?Object.values(tasks):[];const mArr=members?Object.values(members):[];
 const projectMap={};tArr.forEach(t=>{const key=t.code&&t.code!=='NEW'?t.code:'nocode_'+t.project;if(!projectMap[key])projectMap[key]={name:t.project,code:t.code&&t.code!=='NEW'?t.code:'',tasks:[]};projectMap[key].tasks.push(t);});
@@ -597,12 +637,12 @@ const activeProjects=Object.values(projectMap).filter(p=>p.tasks.some(t=>t.statu
 const completedProjects=Object.values(projectMap).filter(p=>p.tasks.every(t=>t.status==='Completed'));
 const total=tArr.length,completed=tArr.filter(t=>t.status==='Completed').length;const pending=tArr.filter(t=>t.status==='Pending'||t.status==='In Progress').length;const overdue=tArr.filter(t=>t.alert==='Overdue'||t.status==='Delayed').length;const review=tArr.filter(t=>t.status==='Submitted for Review').length;const onhold=tArr.filter(t=>t.status==='On Hold').length;
 const totalProjects=Object.keys(projectMap).length;const activeProjectsCount=activeProjects.length;const completedProjectsCount=completedProjects.length;
-document.getElementById('dash-stats').innerHTML='<div class="stat-card" style="border-left:3px solid var(--blue);cursor:pointer;" onclick="document.getElementById(\'dash-projects\').showPage(\'projects\')"><div class="stat-label">Total Projects</div><div class="stat-val c-blue">'+totalProjects+'</div><div style="font-size:10px;color:var(--text3);margin-top:4px;">'+activeProjectsCount+' active · '+completedProjectsCount+' done</div></div><div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val">'+total+'</div></div><div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val c-green">'+completed+'</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">'+pending+'</div></div><div class="stat-card"><div class="stat-label">Overdue / Delayed</div><div class="stat-val c-red">'+overdue+'</div></div><div class="stat-card"><div class="stat-label">In Review</div><div class="stat-val c-purple">'+review+'</div></div><div class="stat-card"><div class="stat-label">On Hold</div><div class="stat-val c-amber">'+onhold+'</div></div>';
+document.getElementById('dash-stats').innerHTML='<div class="stat-card" style="border-left:3px solid var(--blue);cursor:pointer;" onclick="showPage(&quot;projects&quot;)"><div class="stat-label">Total Projects</div><div class="stat-val c-blue">'+totalProjects+'</div><div style="font-size:10px;color:var(--text3);margin-top:4px;">'+activeProjectsCount+' active · '+completedProjectsCount+' done</div></div><div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val">'+total+'</div></div><div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val c-green">'+completed+'</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">'+pending+'</div></div><div class="stat-card"><div class="stat-label">Overdue / Delayed</div><div class="stat-val c-red">'+overdue+'</div></div><div class="stat-card"><div class="stat-label">In Review</div><div class="stat-val c-purple">'+review+'</div></div><div class="stat-card"><div class="stat-label">On Hold</div><div class="stat-val c-amber">'+onhold+'</div></div>';
 const urgentTasks=tArr.filter(t=>t.status!=='Completed'&&(t.alert==='Overdue'||t.status==='Delayed'||t.status==='On Hold')).slice(0,6);
 document.getElementById('dash-urgent').innerHTML=urgentTasks.length?urgentTasks.map(t=>'<div class="task-card '+(t.alert==='Overdue'?'urgent':'')+'" style="cursor:pointer;" onclick="openTaskDetail(\''+t.id+'\')"><div style="font-size:13px;font-weight:500;">'+t.scope+'</div><div class="task-meta">'+statusBadge(t.status)+priorityBadge(t.priority)+'<span style="font-size:12px;color:var(--text3);">'+t.project+'</span></div></div>').join(''):'<div class="empty"><div>&#9989;</div><div style="font-size:13px;">No urgent tasks</div></div>';
 document.getElementById('dash-team-overview').innerHTML='<div class="table-wrap"><table><thead><tr><th>Member</th><th>Done</th><th>Pending</th></tr></thead><tbody>'+mArr.map(m=>{const mt=tArr.filter(t=>t.assignee===m.name);const done=mt.filter(t=>t.status==='Completed').length;const pend=mt.filter(t=>t.status!=='Completed').length;return'<tr><td>'+memberAvatarWithName(m.name,m.colorIdx)+'</td><td><span class="c-green">'+done+'</span></td><td>'+pend+'</td></tr>';}).join('')+'</tbody></table></div>';
 const isManager=currentUser.role==='manager';
-const renderCard=p=>{const done=p.tasks.filter(t=>t.status==='Completed').length;const pct=Math.round(done/p.tasks.length*100);const client=p.tasks.find(t=>t.client)?.client||'';const delBtn=isManager?'<button onclick="openDeleteProjectModal(\''+p.name.replace(/\'/g,"\\'")+'\'_'+p.code+'\');event.stopPropagation();" title="Delete project" style="background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:5px 6px;color:var(--text3);flex-shrink:0;transition:all .15s;" onmouseover="this.style.background=\'var(--red-bg)\';this.style.borderColor=\'var(--red)\';this.style.color=\'var(--red)\';" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\';this.style.color=\'var(--text3)\';"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"3 6 5 6 21 6\"></polyline><path d=\"M19 6l-1 14H6L5 6\"></path><path d=\"M10 11v6M14 11v6\"></path><path d=\"M9 6V4h6v2\"></path></svg></button>':'';return'<div class="card" style="margin:0;"><div style="display:flex;align-items:flex-start;gap:6px;"><div style="flex:1;cursor:pointer;" onclick="showPage(\'tasks\');clearAllFilters();document.getElementById(\'f-code\').value=\''+p.code+'\';filterTasks()">'+(p.code?'<div style="font-size:12px;font-weight:700;color:var(--blue-t);">#'+p.code+'</div>':'')+'<div style="font-size:13px;font-weight:600;margin:1px 0;">'+p.name+'</div>'+(client?'<div style="font-size:11px;color:var(--text3);">'+client+'</div>':'')+'<div style="font-size:11px;color:var(--text3);margin:5px 0 4px;">'+done+'/'+p.tasks.length+' done</div><div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;"></div></div><div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">'+pct+'%</div></div>'+delBtn+'</div></div>';};
+const renderCard=p=>{const done=p.tasks.filter(t=>t.status==='Completed').length;const pct=Math.round(done/p.tasks.length*100);const client=p.tasks.find(t=>t.client)?.client||'';const delBtn='';return'<div class="card" style="margin:0;"><div style="display:flex;align-items:flex-start;gap:6px;"><div style="flex:1;cursor:pointer;" onclick="showPage(\'tasks\');clearAllFilters();document.getElementById(\'f-code\').value=\''+p.code+'\';filterTasks()">'+(p.code?'<div style="font-size:12px;font-weight:700;color:var(--blue-t);">#'+p.code+'</div>':'')+'<div style="font-size:13px;font-weight:600;margin:1px 0;">'+p.name+'</div>'+(client?'<div style="font-size:11px;color:var(--text3);">'+client+'</div>':'')+'<div style="font-size:11px;color:var(--text3);margin:5px 0 4px;">'+done+'/'+p.tasks.length+' done</div><div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;"></div></div><div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">'+pct+'%</div></div>'+delBtn+'</div></div>';};
 document.getElementById('dash-projects').innerHTML=activeProjects.length?activeProjects.map(renderCard).join(''):'<div class="empty"><div>&#9989;</div><div style="font-size:13px;">All projects completed!</div></div>';
 const cpEl=document.getElementById('dash-completed-projects');if(cpEl)cpEl.innerHTML=completedProjects.length?'<span style="font-size:12px;color:var(--text3);">'+completedProjects.length+' completed project'+(completedProjects.length>1?'s':'')+' hidden — </span><button onclick="showPage(\'tasks\');clearAllFilters();window._taskTab=\'completed\';switchTaskTab(\'completed\')" style="font-size:12px;color:var(--blue-t);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">View in Completed tab &#8594;</button>':'';
 });});}
@@ -617,7 +657,7 @@ function filterTasks(){renderAllTasks();}
 function clearAllFilters(){['task-search','f-code'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['f-status','f-member','f-priority','f-project'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const countEl=document.getElementById('filter-count');if(countEl)countEl.textContent='';renderAllTasks();}
 function switchTaskTab(tab){window._taskTab=tab;const ta=document.getElementById('tab-active');const tc=document.getElementById('tab-completed');if(ta&&tc){ta.style.borderBottomColor=tab==='active'?'var(--blue)':'transparent';ta.style.color=tab==='active'?'var(--blue-t)':'var(--text3)';ta.style.fontWeight=tab==='active'?'600':'500';tc.style.borderBottomColor=tab==='completed'?'var(--blue)':'transparent';tc.style.color=tab==='completed'?'var(--blue-t)':'var(--text3)';tc.style.fontWeight=tab==='completed'?'600':'500';}// On completed tab, hide status filter since all are completed
 const fsEl=document.getElementById('f-status');if(fsEl){if(tab==='completed'){fsEl.value='';fsEl.disabled=true;fsEl.style.opacity='0.4';}else{fsEl.disabled=false;fsEl.style.opacity='1';}}renderAllTasks();}
-function openTaskDetail(taskId){getData('tasks',tasks=>{getData('members',members=>{const mArr=members?Object.values(members):[];const mMap={};if(members)Object.values(members).forEach(m=>mMap[m.name]=m);const t=tasks&&tasks[taskId];if(!t)return;document.getElementById('tdm-title').textContent=t.scope;document.getElementById('tdm-body').innerHTML='<div class="detail-row"><div class="detail-label">Task ID</div><div>'+t.id+'</div></div><div class="detail-row"><div class="detail-label">Project</div><div><strong>'+t.project+'</strong>'+(t.code&&t.code!=='NEW'?' <span style="font-size:12px;color:var(--text3);background:var(--surf2);padding:2px 8px;border-radius:20px;margin-left:6px;">#'+t.code+'</span>':'')+'</div></div><div class="detail-row"><div class="detail-label">Client</div><div>'+(t.client||'—')+'</div></div><div class="detail-row"><div class="detail-label">Type</div><div>'+(t.type||'—')+'</div></div><div class="detail-row"><div class="detail-label">Scope</div><div>'+t.scope+'</div></div><div class="detail-row"><div class="detail-label">Assigned To</div><div>'+(currentUser.role==='manager'?'<select class="form-input" id="td-assignee" style="max-width:200px;padding:5px 8px;font-size:12px;"><option value="">Unassigned</option>'+mArr.map(m=>'<option value="'+m.name+'" '+(t.assignee===m.name?'selected':'')+'>'+m.name+'</option>').join('')+'</select>':memberAvatarWithName(t.assignee,mMap[t.assignee]?.colorIdx))+'</div></div><div class="detail-row"><div class="detail-label">Status</div><div>'+statusBadge(t.status)+'</div></div><div class="detail-row"><div class="detail-label">Priority</div><div>'+priorityBadge(t.priority)+'</div></div><div class="detail-row"><div class="detail-label">Deadline</div><div>'+(t.deadline||'—')+'</div></div><div class="detail-row"><div class="detail-label">Est. Hours</div><div>'+(t.estHours||'—')+'h</div></div>'+(t.notes?'<div class="detail-row"><div class="detail-label">Notes</div><div style="font-size:12px;line-height:1.6;">'+t.notes+'</div></div>':'')+(t.lastComment?'<div class="detail-row"><div class="detail-label">Last update</div><div style="font-size:12px;color:var(--text2);">'+t.lastComment+'</div></div>':'');const footer=document.getElementById('tdm-footer');if(currentUser.role==='manager'){footer.innerHTML='<button class="btn" onclick="closeModal(\'task-detail-modal\')">Close</button><button class="btn btn-danger btn-sm" onclick="putTaskOnHold(\''+taskId+'\')">&#9208; On Hold</button><button class="btn btn-primary" onclick="saveTaskAssignee(\''+taskId+'\')">Save Assignee</button>';}else{footer.innerHTML='<button class="btn" onclick="closeModal(\'task-detail-modal\')">Close</button><button class="btn btn-primary" onclick="openStatusModal(\''+taskId+'\',\''+t.scope.replace(/'/g,"\\'")+'\',\''+t.status+'\')">Update Status</button>';}openModal('task-detail-modal');});});}
+function openTaskDetail(taskId){getData('tasks',tasks=>{getData('members',members=>{const mArr=members?Object.values(members):[];const mMap={};if(members)Object.values(members).forEach(m=>mMap[m.name]=m);const t=tasks&&tasks[taskId];if(!t)return;document.getElementById('tdm-title').textContent=t.scope;document.getElementById('tdm-body').innerHTML='<div class="detail-row"><div class="detail-label">Task ID</div><div>'+t.id+'</div></div><div class="detail-row"><div class="detail-label">Project</div><div><strong>'+t.project+'</strong>'+(t.code&&t.code!=='NEW'?' <span style="font-size:12px;color:var(--text3);background:var(--surf2);padding:2px 8px;border-radius:20px;margin-left:6px;">#'+t.code+'</span>':'')+'</div></div><div class="detail-row"><div class="detail-label">Client</div><div>'+(t.client||'—')+'</div></div><div class="detail-row"><div class="detail-label">Type</div><div>'+(t.type||'—')+'</div></div><div class="detail-row"><div class="detail-label">Scope</div><div>'+t.scope+'</div></div><div class="detail-row"><div class="detail-label">Assigned To</div><div>'+(currentUser.role==='manager'?'<select class="form-input" id="td-assignee" style="max-width:200px;padding:5px 8px;font-size:12px;"><option value="">Unassigned</option>'+mArr.map(m=>'<option value="'+m.name+'" '+(t.assignee===m.name?'selected':'')+'>'+m.name+'</option>').join('')+'</select>':memberAvatarWithName(t.assignee,mMap[t.assignee]?.colorIdx))+'</div></div><div class="detail-row"><div class="detail-label">Status</div><div>'+statusBadge(t.status)+'</div></div><div class="detail-row"><div class="detail-label">Priority</div><div>'+priorityBadge(t.priority)+'</div></div><div class="detail-row"><div class="detail-label">Deadline</div><div>'+(t.deadline||'—')+'</div></div><div class="detail-row"><div class="detail-label">Est. Hours</div><div>'+(t.estHours||'—')+'h</div></div>'+(t.notes?'<div class="detail-row"><div class="detail-label">Notes</div><div style="font-size:12px;line-height:1.6;">'+t.notes+'</div></div>':'')+(t.lastComment?'<div class="detail-row"><div class="detail-label">Last update</div><div style="font-size:12px;color:var(--text2);">'+t.lastComment+'</div></div>':'');const footer=document.getElementById('tdm-footer');if(currentUser.role==='manager'){footer.innerHTML='<button class="btn btn-sm" onclick="openDeleteTaskModal(\''+taskId+'\')" style="background:none;border:1px solid var(--red);color:var(--red);margin-right:auto;">&#128465; Delete Task</button><button class="btn" onclick="closeModal(\'task-detail-modal\')">Close</button><button class="btn btn-danger btn-sm" onclick="putTaskOnHold(\''+taskId+'\')">&#9208; On Hold</button><button class="btn btn-primary" onclick="saveTaskAssignee(\''+taskId+'\')">Save Assignee</button>';}else{footer.innerHTML='<button class="btn" onclick="closeModal(\'task-detail-modal\')">Close</button><button class="btn btn-primary" onclick="openStatusModal(\''+taskId+'\',\''+t.scope.replace(/'/g,"\\'")+'\',\''+t.status+'\')">Update Status</button>';}openModal('task-detail-modal');});});}
 function saveTaskAssignee(taskId){const assignee=document.getElementById('td-assignee').value;getData('tasks',tasks=>{getData('members',members=>{const t=tasks&&tasks[taskId];if(!t)return;const oldAssignee=t.assignee;updateData('tasks/'+taskId,{assignee},()=>{if(assignee&&assignee!==oldAssignee){sendNotification(assignee,'task_assigned','You have been assigned: '+t.scope+' ('+t.project+')',taskId,members);}toast('Assignee updated');closeModal('task-detail-modal');renderAllTasks();});});});}
 function putTaskOnHold(taskId){getData('tasks',tasks=>{getData('members',members=>{const t=tasks&&tasks[taskId];if(!t)return;updateData('tasks/'+taskId,{status:'On Hold'},()=>{if(t.assignee){sendNotification(t.assignee,'on_hold','Task put on hold: '+t.scope+' ('+t.project+'). Please check with manager.',taskId,members);sendEmail(t.assignee,'Task On Hold: '+t.scope,['Your task "'+t.scope+'" for project '+t.project+' has been put on hold.','Please contact the manager for further instructions.'],members);}toast('Task put on hold. Team member notified.');closeModal('task-detail-modal');renderAllTasks();renderDashboard();});});});}
 function clearAssignForm(){['a-assignee','a-priority','a-deadline','a-hours','a-notes','a-client','a-location','a-project-new','a-code'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('a-task-desc').value='';document.getElementById('a-priority').value='Medium';document.getElementById('a-project').value='';document.getElementById('a-type').value='';document.getElementById('a-project-new-wrap').style.display='none';}
