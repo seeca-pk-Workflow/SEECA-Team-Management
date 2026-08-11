@@ -103,6 +103,22 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
 .pbar-fill{height:100%;border-radius:2px;background:var(--blue);transition:width .4s;}
 .detail-row{display:flex;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .detail-row:last-child{border-bottom:none;}.detail-label{color:var(--text3);width:140px;flex-shrink:0;}
+.b-amber{background:var(--amber-bg);color:var(--amber-t);}
+.b-purple{background:var(--purple-bg);color:var(--purple-t);}
+.b-grey{background:var(--surf2);color:var(--text3);}
+.tl-box{background:var(--surf2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 11px;margin-top:10px;}
+.tl-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.tl-date{display:flex;flex-direction:column;}
+.tl-date b{font-size:12px;font-weight:600;color:var(--text);line-height:1.3;}
+.tl-date span{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+.tl-arrow{flex:1;height:1px;background:var(--border2);margin:0 6px;position:relative;top:4px;}
+.tlbar{height:6px;background:var(--surf3);border-radius:20px;overflow:hidden;margin-top:9px;}
+.tlbar-fill{height:100%;border-radius:20px;transition:width .4s;}
+.req-star{color:var(--red);font-weight:700;}
+.qbtn{padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surf);font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit;}
+.qbtn:hover{background:var(--blue-bg);border-color:var(--blue);color:var(--blue-t);}
+.tl-warn{font-size:11px;margin-top:8px;padding:6px 10px;border-radius:var(--rs);display:none;line-height:1.5;}
+.tl-chip{cursor:pointer;flex:1;min-width:132px;border-radius:var(--rs);padding:9px 12px;transition:all .15s;}
 </style>
 </head>
 <body>
@@ -318,9 +334,12 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
           </div>
           <!-- Search bar -->
           <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;">
-            <input type="text" class="form-input" id="proj-search" placeholder="&#128269; Search by code, name or client..." style="width:280px;padding:6px 10px;font-size:12px;" oninput="renderProjectsPage()">
+            <input type="text" class="form-input" id="proj-search" placeholder="&#128269; Search by code, name or client..." style="width:260px;padding:6px 10px;font-size:12px;" oninput="renderProjectsPage()">
+            <select class="form-input" id="proj-tl-filter" style="width:180px;padding:6px 10px;font-size:12px;" onchange="renderProjectsPage()"><option value="">All timelines</option><option value="overdue">&#128308; Overdue delivery</option><option value="week">&#9200; Due within 7 days</option><option value="ontrack">&#9989; On track</option><option value="none">&#9201; No timeline set</option></select>
             <span id="proj-count" style="font-size:12px;color:var(--text3);"></span>
           </div>
+          <!-- Timeline summary strip -->
+          <div id="proj-timeline-summary" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
           <!-- Projects grid -->
           <div id="projects-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;"></div>
         </div>
@@ -336,6 +355,8 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
               </div>
               <button onclick="closeProjectDetail()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);padding:0 4px;">&#10005;</button>
             </div>
+            <!-- Project timeline -->
+            <div id="pdm-timeline" style="padding:14px 22px 0;"></div>
             <!-- Progress bar -->
             <div style="padding:14px 22px 0;">
               <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;"><span id="pdm-progress-label"></span><span id="pdm-pct"></span></div>
@@ -350,6 +371,32 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
             </div>
           </div>
         </div><!-- /project-detail-modal -->
+
+        <!-- Project Timeline Modal -->
+        <div id="proj-timeline-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1200;align-items:center;justify-content:center;">
+          <div style="background:var(--surf);border-radius:var(--r);width:min(500px,95vw);padding:22px;box-shadow:0 8px 40px rgba(0,0,0,0.2);">
+            <div style="font-size:15px;font-weight:700;">&#128197; Project Timeline</div>
+            <div id="ptm-sub" style="font-size:12px;color:var(--text3);margin:3px 0 16px;"></div>
+            <div class="form-row" style="margin-bottom:0;">
+              <div><label class="form-label">Project Start Date <span class="req-star">*</span></label><input type="date" class="form-input" id="ptm-start" onchange="onPtmInput()"></div>
+              <div><label class="form-label">Project Delivery Date <span class="req-star">*</span></label><input type="date" class="form-input" id="ptm-end" onchange="onPtmInput()"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;">
+              <span style="font-size:11px;color:var(--text3);">Quick set duration:</span>
+              <button type="button" class="qbtn" onclick="ptmQuick(18)">18 days</button>
+              <button type="button" class="qbtn" onclick="ptmQuick(20)">20 days</button>
+              <button type="button" class="qbtn" onclick="ptmQuick(22)">22 days</button>
+              <button type="button" class="qbtn" onclick="ptmQuick(25)">25 days</button>
+              <span id="ptm-duration" style="margin-left:auto;font-size:12px;font-weight:600;color:var(--text2);"></span>
+            </div>
+            <div id="ptm-warn" class="tl-warn"></div>
+            <div style="display:flex;gap:8px;margin-top:20px;align-items:center;">
+              <button class="btn btn-sm" id="ptm-remove" onclick="removeProjectTimeline()" style="background:none;border:1px solid var(--red);color:var(--red);margin-right:auto;">&#128465; Remove</button>
+              <button class="btn btn-sm" onclick="closeTimelineModal()">Cancel</button>
+              <button class="btn btn-sm btn-primary" style="width:auto;" onclick="saveProjectTimeline()">Save Timeline</button>
+            </div>
+          </div>
+        </div><!-- /proj-timeline-modal -->
         <div class="page" id="page-assign">
           <div class="card">
             <div class="card-title">Assign a new task</div>
@@ -368,6 +415,33 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
             <div class="form-row">
               <div><label class="form-label">Project Code <span style="color:var(--text3);font-weight:400;">(internal ref e.g. 6025)</span></label><input class="form-input" id="a-code" placeholder="e.g. 6025"></div>
               <div><label class="form-label">Project Type <span style="color:var(--text3);font-weight:400;">(optional)</span></label><select class="form-input" id="a-type"><option value="">Select...</option><option>Residential</option><option>Commercial</option><option>Industrial</option><option>Institutional</option></select></div>
+            </div>
+            <!-- ===== PROJECT TIMELINE (required for every project) ===== -->
+            <div id="a-timeline-wrap" style="display:none;margin-bottom:10px;">
+              <div style="background:var(--surf2);border:1px solid var(--border2);border-radius:var(--r);padding:13px 14px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;">&#128197; Project Timeline <span class="req-star">*</span></div>
+                    <div id="a-tl-hint" style="font-size:11px;color:var(--text3);margin-top:2px;">Every project must have a start date and a delivery date. Standard window is 18&ndash;25 days depending on scale.</div>
+                  </div>
+                  <div id="a-tl-existing" style="display:none;"></div>
+                </div>
+                <div id="a-tl-fields">
+                  <div class="form-row" style="margin-bottom:0;">
+                    <div><label class="form-label">Project Start Date <span class="req-star">*</span></label><input type="date" class="form-input" id="a-start" onchange="onTimelineInput()"></div>
+                    <div><label class="form-label">Project Delivery Date <span class="req-star">*</span></label><input type="date" class="form-input" id="a-end" onchange="onTimelineInput()"></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;">
+                    <span style="font-size:11px;color:var(--text3);">Quick set duration:</span>
+                    <button type="button" class="qbtn" onclick="quickDuration(18)">18 days</button>
+                    <button type="button" class="qbtn" onclick="quickDuration(20)">20 days</button>
+                    <button type="button" class="qbtn" onclick="quickDuration(22)">22 days</button>
+                    <button type="button" class="qbtn" onclick="quickDuration(25)">25 days</button>
+                    <span id="a-tl-duration" style="margin-left:auto;font-size:12px;font-weight:600;color:var(--text2);"></span>
+                  </div>
+                  <div id="a-tl-warn" class="tl-warn"></div>
+                </div>
+              </div>
             </div>
             <div class="form-row">
               <div style="grid-column:1/-1;">
@@ -554,7 +628,7 @@ function loginTeam(){if(!selectedMemberLogin){toast('Please select your name fir
 function logout(){currentUser=null;selectedMemberLogin=null;document.getElementById('mgr-pass-input').value='';document.getElementById('team-pin-input').value='';showLoginForm(null);showScreen('login');}
 function enterApp(){showScreen('app');document.getElementById('topbar-name').textContent=currentUser.role==='manager'?'':currentUser.displayName||currentUser.name;document.getElementById('topbar-role').textContent=currentUser.role==='manager'?'HR / Admin':'Team Member';buildSidebar();if(currentUser.role==='manager'){showPage('dashboard');setupFirebaseListeners();}else{showPage('my-tasks');loadNotificationsForUser();}}
 function buildSidebar(){const nav=document.getElementById('sidebar-nav');if(currentUser.role==='manager'){nav.innerHTML='<div class="nav-section">Overview</div><div class="nav-item active" onclick="showPage(\'dashboard\')"><span class="nav-icon">&#127968;</span>Dashboard</div><div class="nav-section">Tasks</div><div class="nav-item" onclick="showPage(\'tasks\')"><span class="nav-icon">&#9989;</span>All Tasks</div><div class="nav-item" onclick="showPage(\'projects\')"><span class="nav-icon">&#128196;</span>Projects</div><div class="nav-item" onclick="showPage(\'assign\')"><span class="nav-icon">&#10133;</span>Assign Task</div><div class="nav-item" onclick="showPage(\'briefing\')"><span class="nav-icon">&#128203;</span>Daily Briefing</div><div class="nav-section">Team</div><div class="nav-item" onclick="showPage(\'team\')"><span class="nav-icon">&#128101;</span>Team Members</div><div class="nav-item" onclick="showPage(\'notifications\')"><span class="nav-icon">&#128276;</span>Notifications <span class="nav-badge" id="nav-notif-badge" style="display:none;"></span></div><div class="nav-section">System</div><div class="nav-item" onclick="showPage(\'settings\')"><span class="nav-icon">&#9881;</span>Settings</div>';}else{nav.innerHTML='<div class="nav-section">My Work</div><div class="nav-item active" onclick="showPage(\'my-tasks\')"><span class="nav-icon">&#128203;</span>My Tasks <span class="nav-badge" id="nav-notif-badge" style="display:none;"></span></div><div class="nav-item" onclick="showPage(\'notifications\')"><span class="nav-icon">&#128276;</span>Notifications</div>';}populateAssignDropdowns();}
-function setupFirebaseListeners(){renderDashboard();renderAllTasks();renderTeamList();renderBriefing();if(DB&&!OFFLINE){DB.ref('tasks').on('value',()=>{renderDashboard();renderAllTasks();renderBriefing();});DB.ref('members').on('value',()=>{renderTeamList();populateAssignDropdowns();});DB.ref('notifications').on('value',()=>{updateNotifBadge();});}}
+function setupFirebaseListeners(){loadProjects();renderDashboard();renderAllTasks();renderTeamList();renderBriefing();if(DB&&!OFFLINE){DB.ref('tasks').on('value',()=>{renderDashboard();renderAllTasks();renderBriefing();});DB.ref('members').on('value',()=>{renderTeamList();populateAssignDropdowns();});DB.ref('notifications').on('value',()=>{updateNotifBadge();});DB.ref('projects').on('value',snap=>{PROJ_META=snap.val()||{};renderProjectsPage();renderDashboard();});}}
 function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));const el=document.getElementById('page-'+name);if(el)el.classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+name+"'"))n.classList.add('active');});const titles={dashboard:'Dashboard',tasks:'All Tasks',projects:'Projects','my-tasks':'My Tasks',notifications:'Notifications',assign:'Assign Task',team:'Team Members',settings:'Settings',briefing:'Daily Briefing'};document.getElementById('page-title').textContent=titles[name]||name;if(name==='dashboard')renderDashboard();if(name==='tasks'){window._taskTab=window._taskTab||'active';renderAllTasks();}if(name==='projects'){window._projTab=window._projTab||'active';renderProjectsPage();}if(name==='my-tasks')renderMyTasks();if(name==='team')renderTeamList();if(name==='notifications')renderNotifications();if(name==='briefing')renderBriefing();if(name==='settings')loadSettings();}
 function getInitials(name){return(name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function statusBadge(s){const m={'Completed':'b-completed','Pending':'b-pending','Overdue':'b-overdue','Delayed':'b-delayed','Submitted for Review':'b-review','On Hold':'b-onhold','In Progress':'b-inprogress'};return'<span class="badge '+(m[s]||'b-pending')+'">'+(s||'Pending')+'</span>';}
@@ -571,6 +645,172 @@ function deadlineLabel(t){
   if(diff===0)return'<div style="font-size:10px;color:var(--red-t);font-weight:700;margin-top:3px;">🔴 Due today!</div>';
   return'<div style="font-size:10px;color:var(--red-t);font-weight:700;margin-top:3px;">⚠ Overdue '+(Math.abs(diff)===1?'1 day':Math.abs(diff)+' days')+'</div>';
 }
+
+// ===================== PROJECT TIMELINE TRACKING =====================
+const TL_MIN_DAYS=18, TL_MAX_DAYS=25;
+let PROJ_META={};
+function projKey(code,name){const c=(code||'').toString().trim();if(c&&c!=='NEW')return 'c_'+c.replace(/[.#$/\[\]\s]/g,'_');return 'n_'+(name||'').toString().trim().replace(/[.#$/\[\]]/g,'_').slice(0,80);}
+function todayMid(){const d=new Date();d.setHours(0,0,0,0);return d;}
+function parseD(s){if(!s)return null;const d=new Date(s+'T00:00:00');return isNaN(d.getTime())?null:d;}
+function isoD(d){const z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}
+function fmtD(s){const d=parseD(s);return d?d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'—';}
+function daysBetween(a,b){return Math.round((b-a)/86400000);}
+function addDaysStr(s,n){const d=parseD(s);if(!d)return '';d.setDate(d.getDate()+n);return isoD(d);}
+function durationOf(s,e){const a=parseD(s),b=parseD(e);return (a&&b)?daysBetween(a,b):null;}
+function loadProjects(cb){getData('projects',p=>{PROJ_META=p||{};cb&&cb(PROJ_META);});}
+function getTL(code,name){return PROJ_META[projKey(code,name)]||null;}
+function saveProjMeta(key,obj,cb){if(DB&&!OFFLINE){DB.ref('projects/'+key).update(obj).then(()=>{PROJ_META[key]=Object.assign(PROJ_META[key]||{},obj);cb&&cb();});}else{const all=lsGet('projects')||{};all[key]=Object.assign(all[key]||{},obj);lsSet('projects',all);PROJ_META=all;cb&&cb();}}
+function removeProjMeta(key,cb){if(DB&&!OFFLINE){DB.ref('projects/'+key).remove().then(()=>{delete PROJ_META[key];cb&&cb();});}else{const all=lsGet('projects')||{};delete all[key];lsSet('projects',all);PROJ_META=all;cb&&cb();}}
+
+// Returns {state,label,short,cls,color,days,pct}
+function timelineState(tl,isDone){
+  if(!tl||!tl.endDate)return{state:'none',label:'No timeline set',short:'No timeline',cls:'b-grey',color:'var(--text3)',days:null,pct:0};
+  const today=todayMid();
+  const end=parseD(tl.endDate);
+  const start=parseD(tl.startDate)||end;
+  const days=daysBetween(today,end);
+  const total=Math.max(1,daysBetween(start,end));
+  const pct=Math.min(100,Math.max(0,Math.round(daysBetween(start,today)/total*100)));
+  if(isDone){
+    let lab='Delivered';
+    if(tl.deliveredAt){const late=daysBetween(end,parseD(tl.deliveredAt));lab=late>0?('Delivered '+late+'d late'):(late<0?('Delivered '+Math.abs(late)+'d early'):'Delivered on time');}
+    return{state:'delivered',label:lab,short:lab,cls:late_cls(tl,end),color:'var(--green)',days,pct:100};
+  }
+  const d=Math.abs(days);
+  if(days<0)return{state:'overdue',label:'&#9888; Overdue by '+d+' day'+(d===1?'':'s'),short:'Overdue '+d+'d',cls:'b-overdue',color:'var(--red)',days,pct:100};
+  if(days===0)return{state:'today',label:'&#128308; Delivery due today',short:'Due today',cls:'b-overdue',color:'var(--red)',days,pct};
+  if(days===1)return{state:'soon',label:'&#9200; 1 day remaining',short:'1d left',cls:'b-delayed',color:'var(--amber)',days,pct};
+  if(days<=7)return{state:'soon',label:'&#9200; '+days+' days remaining',short:days+'d left',cls:'b-delayed',color:'var(--amber)',days,pct};
+  return{state:'ontrack',label:days+' days remaining',short:days+'d left',cls:'b-inprogress',color:'var(--blue)',days,pct};
+}
+function late_cls(tl,end){if(!tl.deliveredAt)return 'b-completed';return daysBetween(end,parseD(tl.deliveredAt))>0?'b-delayed':'b-completed';}
+function tlPill(st,size){return '<span class="badge '+st.cls+'" style="font-size:'+(size||10)+'px;">'+st.label+'</span>';}
+
+// Timeline card block used on Projects page + dashboard
+function timelineBox(tl,st,pk,canEdit){
+  if(!tl||!tl.endDate){
+    return '<div class="tl-box" style="border-style:dashed;"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--text3);">&#9201; No timeline set</span>'+(canEdit?'<button class="btn btn-sm" onclick="event.stopPropagation();openTimelineModal(\''+pk+'\')">Set timeline</button>':'')+'</div></div>';
+  }
+  const dur=durationOf(tl.startDate,tl.endDate);
+  return '<div class="tl-box">'
+    +'<div class="tl-row"><div class="tl-date"><span>Start</span><b>'+fmtD(tl.startDate)+'</b></div><div class="tl-arrow"></div><div class="tl-date" style="text-align:right;align-items:flex-end;"><span>Delivery</span><b>'+fmtD(tl.endDate)+'</b></div></div>'
+    +'<div class="tlbar"><div class="tlbar-fill" style="width:'+st.pct+'%;background:'+st.color+';"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap;">'
+    +'<span style="font-size:10px;color:var(--text3);">'+(dur!==null?dur+'-day schedule':'')+'</span>'+tlPill(st)+'</div></div>';
+}
+
+// ---------- Assign-page timeline behaviour ----------
+function showTimelineWarn(elId,dur){
+  const el=document.getElementById(elId);if(!el)return true;
+  if(dur===null){el.style.display='none';return true;}
+  if(dur<=0){el.style.display='block';el.style.background='var(--red-bg)';el.style.color='var(--red-t)';el.innerHTML='&#9888; Delivery date must be after the start date.';return false;}
+  if(dur<TL_MIN_DAYS||dur>TL_MAX_DAYS){el.style.display='block';el.style.background='var(--amber-bg)';el.style.color='var(--amber-t)';el.innerHTML='&#9432; This is a '+dur+'-day schedule, outside the standard '+TL_MIN_DAYS+'&ndash;'+TL_MAX_DAYS+' day window. Allowed &mdash; just confirm it matches the project scale.';return true;}
+  el.style.display='block';el.style.background='var(--green-bg)';el.style.color='var(--green-t)';el.innerHTML='&#10003; '+dur+'-day delivery schedule &mdash; within the standard '+TL_MIN_DAYS+'&ndash;'+TL_MAX_DAYS+' day window.';return true;
+}
+function onTimelineInput(){
+  const s=document.getElementById('a-start').value,e=document.getElementById('a-end').value;
+  const dur=durationOf(s,e);
+  document.getElementById('a-tl-duration').textContent=dur!==null&&dur>0?dur+' days':'';
+  showTimelineWarn('a-tl-warn',dur);
+}
+function quickDuration(n){
+  const sEl=document.getElementById('a-start');
+  if(!sEl.value)sEl.value=isoD(todayMid());
+  document.getElementById('a-end').value=addDaysStr(sEl.value,n);
+  onTimelineInput();
+}
+function updateTimelineSection(){
+  const wrap=document.getElementById('a-timeline-wrap');if(!wrap)return;
+  const sel=document.getElementById('a-project');const val=sel?sel.value:'';
+  const fields=document.getElementById('a-tl-fields');
+  const exist=document.getElementById('a-tl-existing');
+  const hint=document.getElementById('a-tl-hint');
+  if(!val){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  if(val==='__new__'){
+    fields.style.display='block';exist.style.display='none';
+    hint.innerHTML='Required for a new project. Standard window is 18&ndash;25 days depending on scale.';
+    if(!document.getElementById('a-start').value){document.getElementById('a-start').value=isoD(todayMid());quickDuration(21);}
+    return;
+  }
+  loadProjects(()=>{
+    const name=sel.options[sel.selectedIndex]?.textContent?.replace(/^#\d+\s*—\s*/,'').trim()||val;
+    const tl=getTL(val,name);
+    window._aTlKey=projKey(val,name);
+    if(tl&&tl.endDate){
+      fields.style.display='none';exist.style.display='block';
+      const st=timelineState(tl,false);
+      hint.innerHTML='This project already has a timeline.';
+      exist.innerHTML='<div style="text-align:right;"><div style="font-size:11px;color:var(--text2);">'+fmtD(tl.startDate)+' &#8594; <b>'+fmtD(tl.endDate)+'</b></div><div style="margin-top:4px;">'+tlPill(st,10)+' <button type="button" class="btn btn-sm" style="margin-left:4px;" onclick="openTimelineModal(\''+(val||'')+'_SEP_'+encodeURIComponent(name)+'\')">Edit</button></div></div>';
+    }else{
+      fields.style.display='block';exist.style.display='none';
+      hint.innerHTML='&#9888; This project has no timeline yet &mdash; please set its start and delivery dates.';
+      if(!document.getElementById('a-start').value){document.getElementById('a-start').value=isoD(todayMid());quickDuration(21);}
+    }
+  });
+}
+
+// ---------- Timeline modal ----------
+function openTimelineModal(pk){
+  const parts=String(pk).split('_SEP_');
+  const code=parts[0]||'';const name=decodeURIComponent(parts[1]||'');
+  window._tlTarget={code,name,key:projKey(code,name)};
+  loadProjects(()=>{
+    const tl=PROJ_META[window._tlTarget.key]||{};
+    document.getElementById('ptm-sub').innerHTML=(code?'<b>#'+code+'</b> &mdash; ':'')+name;
+    document.getElementById('ptm-start').value=tl.startDate||isoD(todayMid());
+    document.getElementById('ptm-end').value=tl.endDate||addDaysStr(tl.startDate||isoD(todayMid()),21);
+    document.getElementById('ptm-remove').style.display=tl.endDate?'inline-flex':'none';
+    document.getElementById('proj-timeline-modal').style.display='flex';
+    onPtmInput();
+  });
+}
+function closeTimelineModal(){document.getElementById('proj-timeline-modal').style.display='none';window._tlTarget=null;}
+function onPtmInput(){
+  const dur=durationOf(document.getElementById('ptm-start').value,document.getElementById('ptm-end').value);
+  document.getElementById('ptm-duration').textContent=dur!==null&&dur>0?dur+' days':'';
+  showTimelineWarn('ptm-warn',dur);
+}
+function ptmQuick(n){
+  const sEl=document.getElementById('ptm-start');
+  if(!sEl.value)sEl.value=isoD(todayMid());
+  document.getElementById('ptm-end').value=addDaysStr(sEl.value,n);
+  onPtmInput();
+}
+function saveProjectTimeline(){
+  const t=window._tlTarget;if(!t)return;
+  const s=document.getElementById('ptm-start').value,e=document.getElementById('ptm-end').value;
+  if(!s||!e){toast('Please select both a start date and a delivery date.');return;}
+  const dur=durationOf(s,e);
+  if(dur===null||dur<=0){toast('Delivery date must be after the start date.');return;}
+  const prev=PROJ_META[t.key]||{};
+  saveProjMeta(t.key,{key:t.key,code:t.code||'',name:t.name,startDate:s,endDate:e,durationDays:dur,updatedAt:Date.now(),setBy:(currentUser&&currentUser.name)||'Manager'},()=>{
+    toast('Timeline saved — delivery '+fmtD(e)+' ('+dur+' days)');
+    closeTimelineModal();
+    if(prev.endDate&&prev.endDate!==e)notifyProjectTimeline(t.code,t.name,e,true);
+    else if(!prev.endDate)notifyProjectTimeline(t.code,t.name,e,false);
+    renderProjectsPage();renderDashboard();
+    const pdm=document.getElementById('project-detail-modal');
+    if(pdm&&pdm.style.display==='flex')openProjectDetail((t.code||'')+'_SEP_'+encodeURIComponent(t.name));
+    updateTimelineSection();
+  });
+}
+function removeProjectTimeline(){
+  const t=window._tlTarget;if(!t)return;
+  removeProjMeta(t.key,()=>{toast('Timeline removed.');closeTimelineModal();renderProjectsPage();renderDashboard();updateTimelineSection();});
+}
+function notifyProjectTimeline(code,name,endDate,changed){
+  getData('tasks',tasks=>{getData('members',members=>{
+    const tArr=tasks?Object.values(tasks):[];
+    const mine=tArr.filter(t=>((t.code&&t.code!=='NEW')?t.code:t.project)===(code||name)&&t.status!=='Completed');
+    const people=[...new Set(mine.map(t=>t.assignee).filter(Boolean))];
+    people.forEach(p=>sendNotification(p,'deadline_updated',(changed?'Delivery date updated for project ':'Delivery date set for project ')+(code?'#'+code+' ':'')+name+' → '+endDate,'',members));
+  });});
+}
+function setProjTlFilter(f){const el=document.getElementById('proj-tl-filter');if(el){el.value=(el.value===f?'':f);}renderProjectsPage();}
+function goProjTimeline(f){showPage('projects');window._projTab='active';switchProjectTab('active');const el=document.getElementById('proj-tl-filter');if(el)el.value=f;renderProjectsPage();}
+// =====================================================================
+
 function priorityBadge(p){const m={'High':'b-high','Medium':'b-medium','Low':'b-low'};return'<span class="badge '+(m[p]||'b-medium')+'">'+p+'</span>';}
 function avatarHtml(name,colorIdx,size){size=size||28;const ci=colorIdx||0;return'<div class="avatar" style="width:'+size+'px;height:'+size+'px;background:'+AVATAR_BGS[ci%AVATAR_BGS.length]+';color:'+AVATAR_COLORS[ci%AVATAR_COLORS.length]+';">'+getInitials(name)+'</div>';}
 function memberAvatarWithName(name,colorIdx){if(!name)return'<span style="color:var(--text3);font-size:12px;">Unassigned</span>';return'<div style="display:flex;align-items:center;gap:6px;">'+avatarHtml(name,colorIdx)+'<span>'+name+'</span></div>';}
@@ -613,6 +853,7 @@ function confirmDelProject(){
     });
     if(DB&&!OFFLINE){keys.forEach(function(k){DB.ref('tasks/'+k).remove();});}
     else{var d=lsGet('tasks')||{};keys.forEach(function(k){delete d[k];});lsSet('tasks',d);}
+    removeProjMeta(projKey(proj.code,proj.name));
     toast('Project "'+(proj.code?'#'+proj.code+' — ':'')+proj.name+'" deleted.');
     renderDashboard();renderAllTasks();renderProjectsPage();populateAssignDropdowns();
   });
@@ -644,13 +885,13 @@ function confirmDelTask(){
 document.getElementById('del-proj-modal').addEventListener('click',function(e){if(e.target===this)closeDelModal();});
 document.getElementById('del-task-modal').addEventListener('click',function(e){if(e.target===this)closeDelTaskModal();});
 
-function renderDashboard(){getData('tasks',tasks=>{getData('members',members=>{const tArr=tasks?Object.values(tasks):[];const mArr=members?Object.values(members):[];
+function renderDashboard(){loadProjects(()=>{getData('tasks',tasks=>{getData('members',members=>{const tArr=tasks?Object.values(tasks):[];const mArr=members?Object.values(members):[];
 const projectMap={};tArr.forEach(t=>{const key=t.code&&t.code!=='NEW'?t.code:'nocode_'+t.project;if(!projectMap[key])projectMap[key]={name:t.project,code:t.code&&t.code!=='NEW'?t.code:'',tasks:[]};projectMap[key].tasks.push(t);});
 const activeProjects=Object.values(projectMap).filter(p=>p.tasks.some(t=>t.status!=='Completed'));
 const completedProjects=Object.values(projectMap).filter(p=>p.tasks.every(t=>t.status==='Completed'));
 const total=tArr.length,completed=tArr.filter(t=>t.status==='Completed').length;const pending=tArr.filter(t=>t.status==='Pending'||t.status==='In Progress').length;const overdue=tArr.filter(t=>t.alert==='Overdue'||t.status==='Delayed').length;const review=tArr.filter(t=>t.status==='Submitted for Review').length;const onhold=tArr.filter(t=>t.status==='On Hold').length;
-const totalProjects=Object.keys(projectMap).length;const activeProjectsCount=activeProjects.length;const completedProjectsCount=completedProjects.length;
-document.getElementById('dash-stats').innerHTML='<div class="stat-card" style="border-left:3px solid var(--blue);cursor:pointer;" onclick="showPage(&quot;projects&quot;)"><div class="stat-label">Total Projects</div><div class="stat-val c-blue">'+activeProjectsCount+'</div></div><div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val">'+total+'</div></div><div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val c-green">'+completed+'</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">'+pending+'</div></div><div class="stat-card"><div class="stat-label">Overdue / Delayed</div><div class="stat-val c-red">'+overdue+'</div></div><div class="stat-card"><div class="stat-label">In Review</div><div class="stat-val c-purple">'+review+'</div></div><div class="stat-card"><div class="stat-label">On Hold</div><div class="stat-val c-amber">'+onhold+'</div></div>';
+const totalProjects=Object.keys(projectMap).length;const activeProjectsCount=activeProjects.length;const completedProjectsCount=completedProjects.length;let projOverdue=0,projDueSoon=0,projNoTl=0;activeProjects.forEach(p=>{const tl=getTL(p.code,p.name);if(!tl||!tl.endDate){projNoTl++;return;}const st=timelineState(tl,false);if(st.state==='overdue'||st.state==='today')projOverdue++;else if(st.state==='soon')projDueSoon++;});
+document.getElementById('dash-stats').innerHTML='<div class="stat-card" style="border-left:3px solid var(--blue);cursor:pointer;" onclick="showPage(&quot;projects&quot;)"><div class="stat-label">Total Projects</div><div class="stat-val c-blue">'+activeProjectsCount+'</div></div><div class="stat-card" style="border-left:3px solid var(--red);cursor:pointer;" onclick="goProjTimeline(&quot;overdue&quot;)"><div class="stat-label">Delivery Overdue</div><div class="stat-val c-red">'+projOverdue+'</div></div><div class="stat-card" style="border-left:3px solid var(--amber);cursor:pointer;" onclick="goProjTimeline(&quot;week&quot;)"><div class="stat-label">Delivering in &#8804; 7 Days</div><div class="stat-val c-amber">'+projDueSoon+'</div></div><div class="stat-card"><div class="stat-label">Total Tasks</div><div class="stat-val">'+total+'</div></div><div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val c-green">'+completed+'</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">'+pending+'</div></div><div class="stat-card"><div class="stat-label">Overdue / Delayed</div><div class="stat-val c-red">'+overdue+'</div></div><div class="stat-card"><div class="stat-label">In Review</div><div class="stat-val c-purple">'+review+'</div></div><div class="stat-card"><div class="stat-label">On Hold</div><div class="stat-val c-amber">'+onhold+'</div></div>';
 const urgentTasks=tArr.filter(t=>t.status!=='Completed'&&(t.alert==='Overdue'||t.status==='Delayed'||t.status==='On Hold')).slice(0,6);
 document.getElementById('dash-urgent').innerHTML=urgentTasks.length?urgentTasks.map(t=>'<div class="task-card '+(t.alert==='Overdue'?'urgent':'')+'" style="cursor:pointer;" onclick="openTaskDetail(\''+t.id+'\')"><div style="font-size:13px;font-weight:500;">'+t.scope+'</div><div class="task-meta">'+statusBadge(t.status)+priorityBadge(t.priority)+'<span style="font-size:12px;color:var(--text3);">'+t.project+'</span></div></div>').join(''):'<div class="empty"><div>&#9989;</div><div style="font-size:13px;">No urgent tasks</div></div>';
 document.getElementById('dash-team-overview').innerHTML='<div class="table-wrap"><table><thead><tr><th>Member</th><th>Done</th><th>Pending</th></tr></thead><tbody>'+mArr.map(m=>{const mt=tArr.filter(t=>t.assignee===m.name);const done=mt.filter(t=>t.status==='Completed').length;const pend=mt.filter(t=>t.status!=='Completed').length;return'<tr><td>'+memberAvatarWithName(m.name,m.colorIdx)+'</td><td><span class="c-green">'+done+'</span></td><td>'+pend+'</td></tr>';}).join('')+'</tbody></table></div>';
@@ -659,16 +900,16 @@ const renderCard=p=>{const done=p.tasks.filter(t=>t.status==='Completed').length
 // Find nearest active task deadline label
 const activeTasks=p.tasks.filter(t=>!['Completed','Submitted for Review','On Hold'].includes(t.status)&&t.deadline);
 let nearestLabel='';
-if(activeTasks.length){const today=new Date();today.setHours(0,0,0,0);let nearest=null;let nearestDiff=Infinity;activeTasks.forEach(t=>{const due=new Date(t.deadline);due.setHours(0,0,0,0);const diff=Math.round((due-today)/(1000*60*60*24));if(diff<nearestDiff){nearestDiff=diff;nearest=t;}});if(nearest&&nearestDiff<=7){nearestLabel=deadlineLabel(nearest);}}const client=p.tasks.find(t=>t.client)?.client||'';const delBtn='';return'<div class="card" style="margin:0;"><div style="display:flex;align-items:flex-start;gap:6px;"><div style="flex:1;cursor:pointer;" onclick="showPage(\'tasks\');clearAllFilters();document.getElementById(\'f-code\').value=\''+p.code+'\';filterTasks()">'+(p.code?'<div style="font-size:12px;font-weight:700;color:var(--blue-t);">#'+p.code+'</div>':'')+'<div style="font-size:13px;font-weight:600;margin:1px 0;">'+p.name+'</div>'+(client?'<div style="font-size:11px;color:var(--text3);">'+client+'</div>':'')+'<div style="font-size:11px;color:var(--text3);margin:5px 0 4px;">'+done+'/'+p.tasks.length+' done</div><div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;"></div></div><div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">'+pct+'%</div>'+nearestLabel+'</div>'+delBtn+'</div></div>';};
+if(activeTasks.length){const today=new Date();today.setHours(0,0,0,0);let nearest=null;let nearestDiff=Infinity;activeTasks.forEach(t=>{const due=new Date(t.deadline);due.setHours(0,0,0,0);const diff=Math.round((due-today)/(1000*60*60*24));if(diff<nearestDiff){nearestDiff=diff;nearest=t;}});if(nearest&&nearestDiff<=7){nearestLabel=deadlineLabel(nearest);}}const client=p.tasks.find(t=>t.client)?.client||'';const delBtn='';return'<div class="card" style="margin:0;"><div style="display:flex;align-items:flex-start;gap:6px;"><div style="flex:1;cursor:pointer;" onclick="showPage(\'tasks\');clearAllFilters();document.getElementById(\'f-code\').value=\''+p.code+'\';filterTasks()">'+(p.code?'<div style="font-size:12px;font-weight:700;color:var(--blue-t);">#'+p.code+'</div>':'')+'<div style="font-size:13px;font-weight:600;margin:1px 0;">'+p.name+'</div>'+(client?'<div style="font-size:11px;color:var(--text3);">'+client+'</div>':'')+'<div style="font-size:11px;color:var(--text3);margin:5px 0 4px;">'+done+'/'+p.tasks.length+' done</div><div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;"></div></div><div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right;">'+pct+'%</div>'+nearestLabel+'</div>'+delBtn+'</div>'+timelineBox(getTL(p.code,p.name),timelineState(getTL(p.code,p.name),false),(p.code||'')+'_SEP_'+encodeURIComponent(p.name),isManager)+'</div>';};
 document.getElementById('dash-projects').innerHTML=activeProjects.length?activeProjects.map(renderCard).join(''):'<div class="empty"><div>&#9989;</div><div style="font-size:13px;">All projects completed!</div></div>';
 const cpEl=document.getElementById('dash-completed-projects');if(cpEl)cpEl.innerHTML=completedProjects.length?'<span style="font-size:12px;color:var(--text3);">'+completedProjects.length+' completed project'+(completedProjects.length>1?'s':'')+' hidden — </span><button onclick="showPage(\'tasks\');clearAllFilters();window._taskTab=\'completed\';switchTaskTab(\'completed\')" style="font-size:12px;color:var(--blue-t);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">View in Completed tab &#8594;</button>':'';
-});});}
+});});});}
 const COMMON_SCOPES=['Layout Plans','3D Exterior Model','3D Exterior Renders','3D Interior Model','3D Interior Renders','Arch Working Drawings','Interior Working Drawings','NLC Submission Drawings','Moodboard','Landscaping','Structure Design','Exterior Animation','Interior Animation','3D Walkthrough','Furniture Layout','Electrical Layout','Plumbing Layout','Ceiling Design','Site Visit Report'];
 function populateAssignDropdowns(){getData('members',members=>{const mArr=members?Object.values(members):[];['f-member','a-assignee'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const cur=el.value;el.innerHTML=id==='f-member'?'<option value="">All members</option>':'<option value="">Select member...</option>';mArr.forEach(m=>{const o=document.createElement('option');o.value=m.name;o.textContent=m.name+' — '+m.role;el.appendChild(o);});el.value=cur;});});getData('tasks',tasks=>{const tArr=tasks?Object.values(tasks):[];const projectMap={};tArr.forEach(t=>{if(t.code&&t.code!=='NEW'){const key=t.code;if(!projectMap[key])projectMap[key]={code:t.code,name:t.project};}else{const key='nocode_'+t.project;if(!projectMap[key])projectMap[key]={code:'',name:t.project};}});const fpEl=document.getElementById('f-project');if(fpEl){const cur=fpEl.value;fpEl.innerHTML='<option value="">All projects</option>';Object.values(projectMap).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{const o=document.createElement('option');o.value=p.code||p.name;o.textContent=p.code?'#'+p.code+' — '+p.name:p.name;fpEl.appendChild(o);});fpEl.value=cur;}const apEl=document.getElementById('a-project');if(apEl){const cur=apEl.value;apEl.innerHTML='<option value="">Select existing project...</option>';Object.values(projectMap).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{const o=document.createElement('option');o.value=p.code||p.name;o.textContent=p.code?'#'+p.code+' — '+p.name:p.name;apEl.appendChild(o);});const newOpt=document.createElement('option');newOpt.value='__new__';newOpt.textContent='+ New project...';apEl.appendChild(newOpt);apEl.value=cur;}const chipsEl=document.getElementById('scope-chips');if(chipsEl){const extraScopes=[...new Set(tArr.map(t=>t.scope))].filter(s=>!COMMON_SCOPES.includes(s));const allScopes=[...COMMON_SCOPES,...extraScopes];chipsEl.innerHTML=allScopes.map(s=>'<button type="button" onclick="pickScope(\''+s.replace(/'/g,"\\'")+'\''+')" style="padding:4px 10px;border-radius:20px;border:1px solid var(--border2);background:var(--surf2);font-size:12px;cursor:pointer;color:var(--text2);" onmouseover="this.style.background=\'var(--blue-bg)\';this.style.borderColor=\'var(--blue)\';this.style.color=\'var(--blue-t)\';" onmouseout="this.style.background=\'var(--surf2)\';this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\';">'+s+'</button>').join('');}});}
 function pickScope(scope){const el=document.getElementById('a-task-desc');if(el){el.value=scope;el.focus();}}
 function onProjectChange(){const sel=document.getElementById('a-project');const val=sel.value;const wrap=document.getElementById('a-project-new-wrap');const codeEl=document.getElementById('a-code');if(val==='__new__'){wrap.style.display='block';document.getElementById('a-project-new').focus();if(codeEl)codeEl.value='';}else{wrap.style.display='none';// Auto-fill code from selected project (value IS the code for existing projects)
-if(codeEl&&val&&val!=='')codeEl.value=val;}}
-function cancelNewProject(){document.getElementById('a-project').value='';document.getElementById('a-project-new-wrap').style.display='none';document.getElementById('a-project-new').value='';}
+if(codeEl&&val&&val!=='')codeEl.value=val;}updateTimelineSection();}
+function cancelNewProject(){document.getElementById('a-project').value='';document.getElementById('a-project-new-wrap').style.display='none';document.getElementById('a-project-new').value='';updateTimelineSection();}
 function renderAllTasks(){const activeTab=window._taskTab||'active';getData('tasks',tasks=>{getData('members',members=>{const mMap={};if(members)Object.values(members).forEach(m=>mMap[m.name]=m);const tArr=tasks?Object.values(tasks):[];const q=(document.getElementById('task-search')||{}).value?.toLowerCase()||'';const fs=(document.getElementById('f-status')||{}).value||'';const fm=(document.getElementById('f-member')||{}).value||'';const fp=(document.getElementById('f-priority')||{}).value||'';const fpr=(document.getElementById('f-project')||{}).value||'';const fcode=(document.getElementById('f-code')||{}).value?.trim().toLowerCase()||'';const filtered=tArr.filter(t=>{if(activeTab==='active'&&t.status==='Completed')return false;if(activeTab==='completed'&&t.status!=='Completed')return false;if(q&&!`${t.id} ${t.project} ${t.scope} ${t.assignee} ${t.client}`.toLowerCase().includes(q))return false;if(fs&&t.status!==fs)return false;if(fm&&t.assignee!==fm)return false;if(fp&&t.priority!==fp)return false;if(fpr&&(t.code&&t.code!=='NEW'?t.code:t.project)!==fpr)return false;if(fcode&&!(t.code&&t.code!=='NEW'&&t.code.toLowerCase().includes(fcode)))return false;return true;});const countEl=document.getElementById('filter-count');if(countEl)countEl.textContent=filtered.length<tArr.length?filtered.length+' of '+tArr.length+' tasks':'';document.getElementById('task-tbody').innerHTML=filtered.length?filtered.map(t=>{const m=mMap[t.assignee];const codeHtml=t.code&&t.code!=='NEW'?'<div style="font-size:12px;font-weight:700;color:var(--blue-t);">#'+t.code+'</div>':'';const nameHtml='<div style="font-size:11px;color:var(--text2);">'+t.project+'</div>';const clientHtml=t.client?'<div style="font-size:11px;color:var(--text3);">'+t.client+'</div>':'';return'<tr style="cursor:pointer;" onclick="openTaskDetail(\''+t.id+'\')"><td style="font-family:monospace;font-size:11px;color:var(--text3);">'+t.id+'</td><td>'+codeHtml+nameHtml+clientHtml+'</td><td style="max-width:200px;">'+t.scope+'</td><td>'+(t.assignee?memberAvatarWithName(t.assignee,m?.colorIdx):'<span style="font-size:12px;color:var(--text3);">Unassigned</span>')+'</td><td>'+priorityBadge(t.priority)+'</td><td>'+statusBadge(t.status)+deadlineLabel(t)+'</td><td style="text-align:right;">'+(t.estHours||'—')+'h</td><td><button class="btn btn-sm" onclick="event.stopPropagation();openTaskDetail(\''+t.id+'\')">View</button></td></tr>';}).join(''):'<tr><td colspan="8"><div class="empty"><div class="empty-icon">'+(activeTab==='completed'?'📋':'🔍')+'</div><div>'+(activeTab==='completed'?'No completed tasks match filters':'No active tasks match filters')+'</div></div></td></tr>';});});}
 function filterTasks(){renderAllTasks();}
 function clearAllFilters(){['task-search','f-code'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});['f-status','f-member','f-priority','f-project'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const countEl=document.getElementById('filter-count');if(countEl)countEl.textContent='';renderAllTasks();}
@@ -678,11 +919,127 @@ function openTaskDetail(taskId){getData('tasks',tasks=>{getData('members',member
 function saveTaskAssignee(taskId){const assignee=document.getElementById('td-assignee').value;getData('tasks',tasks=>{getData('members',members=>{const t=tasks&&tasks[taskId];if(!t)return;const oldAssignee=t.assignee;updateData('tasks/'+taskId,{assignee},()=>{if(assignee&&assignee!==oldAssignee){sendNotification(assignee,'task_assigned','You have been assigned: '+t.scope+' ('+t.project+')',taskId,members);}toast('Assignee updated');closeModal('task-detail-modal');renderAllTasks();});});});}
 function saveDeadline(taskId){const newDeadline=document.getElementById('td-deadline').value;if(!newDeadline){toast('Please select a deadline date.');return;}getData('tasks',tasks=>{getData('members',members=>{const t=tasks&&tasks[taskId];if(!t)return;updateData('tasks/'+taskId,{deadline:newDeadline},()=>{toast('Deadline updated to '+newDeadline);if(t.assignee){sendNotification(t.assignee,'deadline_updated','Deadline updated for: '+t.scope+' → '+newDeadline,taskId,members);}closeModal('task-detail-modal');renderAllTasks();renderDashboard();renderProjectsPage();});});});}
 function putTaskOnHold(taskId){getData('tasks',tasks=>{getData('members',members=>{const t=tasks&&tasks[taskId];if(!t)return;updateData('tasks/'+taskId,{status:'On Hold'},()=>{if(t.assignee){sendNotification(t.assignee,'on_hold','Task put on hold: '+t.scope+' ('+t.project+'). Please check with manager.',taskId,members);sendEmail(t.assignee,'Task On Hold: '+t.scope,['Your task "'+t.scope+'" for project '+t.project+' has been put on hold.','Please contact the manager for further instructions.'],members);}toast('Task put on hold. Team member notified.');closeModal('task-detail-modal');renderAllTasks();renderDashboard();});});});}
-function clearAssignForm(){['a-assignee','a-priority','a-deadline','a-hours','a-notes','a-client','a-location','a-project-new','a-code'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('a-task-desc').value='';document.getElementById('a-priority').value='Medium';document.getElementById('a-project').value='';document.getElementById('a-type').value='';document.getElementById('a-project-new-wrap').style.display='none';}
-function assignTask(){const projectSel=document.getElementById('a-project').value;const projectNew=(document.getElementById('a-project-new').value||'').trim();const isNew=projectSel==='__new__';const project=isNew?projectNew:(document.getElementById('a-project').options[document.getElementById('a-project').selectedIndex]?.textContent?.replace(/^#\d+\s*—\s*/,'').trim()||projectSel);const assignee=document.getElementById('a-assignee').value;const scope=(document.getElementById('a-task-desc').value||'').trim();const priority=document.getElementById('a-priority').value;const deadline=document.getElementById('a-deadline').value;const hours=document.getElementById('a-hours').value;const notes=(document.getElementById('a-notes').value||'').trim();const client=(document.getElementById('a-client').value||'').trim();const location=(document.getElementById('a-location').value||'').trim();const code=(document.getElementById('a-code').value||'').trim();const type=(document.getElementById('a-type').value||'').trim();if(!project){toast('Please select or type a project name.');return;}if(!scope){toast('Please describe the task scope.');return;}getData('tasks',tasks=>{getData('members',members=>{const tArr=tasks?Object.values(tasks):[];const newId='T'+String(tArr.length+200).padStart(3,'0')+'_'+Date.now().toString().slice(-4);const newTask={id:newId,code:code||'NEW',project,client,location,type,scope,assignee,priority,estHours:hours?parseInt(hours):0,status:'Pending',alert:'',deadline,notes,createdAt:Date.now(),createdBy:'Manager'};setData('tasks/'+newId,newTask,()=>{if(assignee){sendNotification(assignee,'task_assigned','New task assigned: '+scope+' ('+project+')',newId,members);sendEmail(assignee,'New Task Assigned: '+scope,['Assalam o Alaikum '+assignee.split(' ')[0]+'!','You have been assigned a new task by the manager.','Task: '+scope,'Project: '+project,client?'Client: '+client:'',location?'Location: '+location:'','Priority: '+priority,deadline?'Deadline: '+deadline:'',notes?'Instructions: '+notes:'','Please confirm receipt.\n\nJazakAllah\nMr. Abid (SEECA)'],members);}toast('Task assigned'+(assignee?' & notification sent!':'!'));populateAssignDropdowns();clearAssignForm();renderAllTasks();renderDashboard();});});});}
+function clearAssignForm(){['a-assignee','a-priority','a-deadline','a-hours','a-notes','a-client','a-location','a-project-new','a-code','a-start','a-end'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('a-task-desc').value='';document.getElementById('a-priority').value='Medium';document.getElementById('a-project').value='';document.getElementById('a-type').value='';document.getElementById('a-project-new-wrap').style.display='none';const tw=document.getElementById('a-timeline-wrap');if(tw)tw.style.display='none';const dw=document.getElementById('a-tl-duration');if(dw)dw.textContent='';const ww=document.getElementById('a-tl-warn');if(ww)ww.style.display='none';}
+function assignTask(){const projectSel=document.getElementById('a-project').value;const projectNew=(document.getElementById('a-project-new').value||'').trim();const isNew=projectSel==='__new__';const project=isNew?projectNew:(document.getElementById('a-project').options[document.getElementById('a-project').selectedIndex]?.textContent?.replace(/^#\d+\s*—\s*/,'').trim()||projectSel);const assignee=document.getElementById('a-assignee').value;const scope=(document.getElementById('a-task-desc').value||'').trim();const priority=document.getElementById('a-priority').value;const deadline=document.getElementById('a-deadline').value;const hours=document.getElementById('a-hours').value;const notes=(document.getElementById('a-notes').value||'').trim();const client=(document.getElementById('a-client').value||'').trim();const location=(document.getElementById('a-location').value||'').trim();const code=(document.getElementById('a-code').value||'').trim();const type=(document.getElementById('a-type').value||'').trim();
+if(!project){toast('Please select or type a project name.');return;}
+if(!scope){toast('Please describe the task scope.');return;}
+loadProjects(()=>{
+  const pkey=projKey(code,project);const existingTl=PROJ_META[pkey];
+  const startDate=(document.getElementById('a-start')||{}).value||'';
+  const endDate=(document.getElementById('a-end')||{}).value||'';
+  let tlPayload=null;
+  if(!existingTl||!existingTl.endDate){
+    if(!startDate||!endDate){toast('Please set the project start date and delivery date — this is required for every project.');document.getElementById('a-timeline-wrap').style.display='block';document.getElementById('a-tl-fields').style.display='block';document.getElementById('a-start').focus();return;}
+    const dur=durationOf(startDate,endDate);
+    if(dur===null||dur<=0){toast('Delivery date must be after the start date.');return;}
+    tlPayload={key:pkey,code:code||'',name:project,startDate,endDate,durationDays:dur,createdAt:Date.now(),setBy:(currentUser&&currentUser.name)||'Manager'};
+  }
+  getData('tasks',tasks=>{getData('members',members=>{
+    const tArr=tasks?Object.values(tasks):[];
+    const newId='T'+String(tArr.length+200).padStart(3,'0')+'_'+Date.now().toString().slice(-4);
+    const newTask={id:newId,code:code||'NEW',project,client,location,type,scope,assignee,priority,estHours:hours?parseInt(hours):0,status:'Pending',alert:'',deadline,notes,createdAt:Date.now(),createdBy:'Manager'};
+    const finish=()=>{setData('tasks/'+newId,newTask,()=>{
+      const tl=tlPayload||existingTl||{};
+      if(assignee){sendNotification(assignee,'task_assigned','New task assigned: '+scope+' ('+project+')',newId,members);sendEmail(assignee,'New Task Assigned: '+scope,['Assalam o Alaikum '+assignee.split(' ')[0]+'!','You have been assigned a new task by the manager.','Task: '+scope,'Project: '+project,client?'Client: '+client:'',location?'Location: '+location:'','Priority: '+priority,deadline?'Task Deadline: '+deadline:'',tl.startDate?'Project Start: '+tl.startDate:'',tl.endDate?'Project Delivery: '+tl.endDate+(tl.durationDays?' ('+tl.durationDays+'-day schedule)':''):'',notes?'Instructions: '+notes:'','Please confirm receipt.\n\nJazakAllah\nMr. Abid (SEECA)'],members);}
+      toast('Task assigned'+(tlPayload?' & project timeline set':'')+(assignee?' — notification sent!':'!'));
+      populateAssignDropdowns();clearAssignForm();renderAllTasks();renderDashboard();renderProjectsPage();
+    });};
+    if(tlPayload)saveProjMeta(pkey,tlPayload,finish);else finish();
+  });});
+});}
 function switchProjectTab(tab){window._projTab=tab;const ta=document.getElementById('ptab-active');const tc=document.getElementById('ptab-completed');if(ta&&tc){[ta,tc].forEach(b=>{b.style.borderBottomColor='transparent';b.style.color='var(--text3)';b.style.fontWeight='500';});const active=tab==='active'?ta:tc;active.style.borderBottomColor='var(--blue)';active.style.color='var(--blue-t)';active.style.fontWeight='600';}renderProjectsPage();}
-function renderProjectsPage(){getData('tasks',tasks=>{const tArr=tasks?Object.values(tasks):[];const q=(document.getElementById('proj-search')||{}).value?.toLowerCase().trim()||'';const tab=window._projTab||'active';const projectMap={};tArr.forEach(t=>{const key=t.code&&t.code!=='NEW'?t.code:'nocode_'+t.project;if(!projectMap[key])projectMap[key]={name:t.project,code:t.code&&t.code!=='NEW'?t.code:'',client:t.client||'',type:t.type||'',tasks:[]};if(!projectMap[key].client&&t.client)projectMap[key].client=t.client;projectMap[key].tasks.push(t);});let projects=Object.values(projectMap);if(tab==='active')projects=projects.filter(p=>p.tasks.some(t=>t.status!=='Completed'));else projects=projects.filter(p=>p.tasks.every(t=>t.status==='Completed'));if(q)projects=projects.filter(p=>(p.code+' '+p.name+' '+(p.client||'')).toLowerCase().includes(q));const countEl=document.getElementById('proj-count');if(countEl)countEl.textContent=projects.length+' project'+(projects.length!==1?'s':'');const grid=document.getElementById('projects-grid');if(!grid)return;if(!projects.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">'+(tab==='completed'?'📋':'🔍')+'</div><div>'+(q?'No projects match your search':'No '+(tab==='active'?'active':'completed')+' projects')+'</div></div>';return;}grid.innerHTML=projects.map(p=>{const done=p.tasks.filter(t=>t.status==='Completed').length;const pct=Math.round(done/p.tasks.length*100);const pending=p.tasks.filter(t=>t.status==='Pending').length;const inprog=p.tasks.filter(t=>t.status==='In Progress').length;const overdue=p.tasks.filter(t=>t.alert==='Overdue'||t.status==='Delayed').length;const onhold=p.tasks.filter(t=>t.status==='On Hold').length;const review=p.tasks.filter(t=>t.status==='Submitted for Review').length;const statusChips=(overdue?'<span class="badge b-overdue" style="font-size:10px;">'+overdue+' Overdue</span>':'')+(onhold?'<span class="badge b-amber" style="font-size:10px;">'+onhold+' On Hold</span>':'')+(review?'<span class="badge b-purple" style="font-size:10px;">'+review+' In Review</span>':'');return'<div class="card" style="margin:0;cursor:pointer;" onclick="openProjectDetail(\''+p.code+'_SEP_'+encodeURIComponent(p.name)+'\')">'+'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'+'<div>'+(p.code?'<div style="font-size:11px;font-weight:700;color:var(--blue-t);letter-spacing:.04em;">#'+p.code+'</div>':'')+'<div style="font-size:14px;font-weight:600;margin:2px 0;">'+p.name+'</div>'+(p.client?'<div style="font-size:11px;color:var(--text3);">&#128100; '+p.client+'</div>':'')+'</div>'+'<div style="text-align:right;font-size:11px;color:var(--text3);">'+p.tasks.length+' task'+(p.tasks.length!==1?'s':'')+'</div></div>'+'<div style="margin:10px 0 4px;">'+'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px;"><span>'+done+'/'+p.tasks.length+' done</span><span>'+pct+'%</span></div>'+'<div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;"></div></div></div>'+'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--text3);">'+(pending?'<span>&#9899; '+pending+' Pending</span>':'')+(inprog?'<span>&#128336; '+inprog+' In Progress</span>':'')+(done&&tab==='active'?'<span style="color:var(--green);">&#10003; '+done+' Done</span>':'')+'</div>'+(statusChips?'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">'+statusChips+'</div>':'')+'</div>';}).join('');});}
-function openProjectDetail(key){const parts=key.split('_SEP_');const code=parts[0];const name=decodeURIComponent(parts[1]);getData('tasks',tasks=>{const tArr=tasks?Object.values(tasks):[];const projTasks=tArr.filter(t=>(t.code&&t.code!=='NEW'?t.code:t.project)===(code||name));const client=projTasks.find(t=>t.client)?.client||'';const type=projTasks.find(t=>t.type)?.type||'';const done=projTasks.filter(t=>t.status==='Completed').length;const pct=projTasks.length?Math.round(done/projTasks.length*100):0;const el=document.getElementById('project-detail-modal');el.style.display='flex';document.getElementById('pdm-code').textContent=code?'Project #'+code:'';document.getElementById('pdm-name').textContent=name;document.getElementById('pdm-meta').textContent=[client?'Client: '+client:'',type?'Type: '+type:''].filter(Boolean).join(' · ')||'No client info';document.getElementById('pdm-progress-label').textContent=done+' of '+projTasks.length+' tasks completed';document.getElementById('pdm-pct').textContent=pct+'%';document.getElementById('pdm-pbar').style.width=pct+'%';const statuses={Completed:0,Pending:0,'In Progress':0,Delayed:0,'On Hold':0,'Submitted for Review':0};projTasks.forEach(t=>statuses[t.status]=(statuses[t.status]||0)+1);document.getElementById('pdm-stats').innerHTML=Object.entries(statuses).filter(([,v])=>v>0).map(([s,v])=>'<div style="background:var(--surf2);border-radius:6px;padding:6px 12px;text-align:center;"><div style="font-size:16px;font-weight:700;">'+v+'</div><div style="font-size:10px;color:var(--text3);">'+s+'</div></div>').join('');document.getElementById('pdm-tasks').innerHTML=projTasks.length?projTasks.map(t=>'<div class="task-card" style="cursor:pointer;margin-bottom:8px;" onclick="closeProjectDetail();openTaskDetail(\''+t.id+'\')"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div style="font-size:13px;font-weight:500;">'+t.scope+'</div>'+statusBadge(t.status)+'</div><div class="task-meta" style="margin-top:6px;">'+priorityBadge(t.priority)+(t.assignee?'<span style="font-size:12px;color:var(--text3);">&#128100; '+t.assignee+'</span>':'<span style="font-size:12px;color:var(--text3);">Unassigned</span>')+(t.deadline?'<span style="font-size:11px;color:var(--text3);">&#128197; '+t.deadline+'</span>':'')+'</div>'+deadlineLabel(t)+(t.notes?'<div style="font-size:11px;color:var(--text3);margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">'+t.notes+'</div>':'')+'</div>').join(''):'<div class="empty">No tasks found</div>';});}
+function renderProjectsPage(){loadProjects(()=>{getData('tasks',tasks=>{
+const tArr=tasks?Object.values(tasks):[];
+const q=(document.getElementById('proj-search')||{}).value?.toLowerCase().trim()||'';
+const tlFilter=(document.getElementById('proj-tl-filter')||{}).value||'';
+const tab=window._projTab||'active';
+const isManager=currentUser&&currentUser.role==='manager';
+const projectMap={};
+tArr.forEach(t=>{const key=t.code&&t.code!=='NEW'?t.code:'nocode_'+t.project;if(!projectMap[key])projectMap[key]={name:t.project,code:t.code&&t.code!=='NEW'?t.code:'',client:t.client||'',type:t.type||'',tasks:[]};if(!projectMap[key].client&&t.client)projectMap[key].client=t.client;if(!projectMap[key].type&&t.type)projectMap[key].type=t.type;projectMap[key].tasks.push(t);});
+let projects=Object.values(projectMap);
+projects.forEach(p=>{p.tl=getTL(p.code,p.name);p.isDone=p.tasks.every(t=>t.status==='Completed');p.st=timelineState(p.tl,p.isDone);});
+// stamp actual delivery date once a project is fully completed
+if(isManager)projects.forEach(p=>{if(p.isDone&&p.tl&&p.tl.endDate&&!p.tl.deliveredAt){const d=isoD(todayMid());saveProjMeta(projKey(p.code,p.name),{deliveredAt:d});p.tl.deliveredAt=d;p.st=timelineState(p.tl,true);}});
+projects=projects.filter(p=>tab==='active'?!p.isDone:p.isDone);
+const sumEl=document.getElementById('proj-timeline-summary');
+if(sumEl){
+  if(tab==='active'){
+    const ov=projects.filter(p=>p.st.state==='overdue'||p.st.state==='today').length;
+    const soon=projects.filter(p=>p.st.state==='soon').length;
+    const ok=projects.filter(p=>p.st.state==='ontrack').length;
+    const nn=projects.filter(p=>p.st.state==='none').length;
+    const chip=(label,val,color,bg,f)=>'<div class="tl-chip" onclick="setProjTlFilter(\''+f+'\')" style="background:'+bg+';border:1px solid '+(tlFilter===f?color:'transparent')+';"><div style="font-size:19px;font-weight:700;color:'+color+';line-height:1.1;">'+val+'</div><div style="font-size:10px;color:var(--text2);font-weight:500;margin-top:2px;">'+label+'</div></div>';
+    sumEl.innerHTML=chip('Delivery overdue',ov,'var(--red-t)','var(--red-bg)','overdue')+chip('Due within 7 days',soon,'var(--amber-t)','var(--amber-bg)','week')+chip('On track',ok,'var(--blue-t)','var(--blue-bg)','ontrack')+chip('No timeline set',nn,'var(--text2)','var(--surf2)','none');
+  }else sumEl.innerHTML='';
+}
+if(q)projects=projects.filter(p=>(p.code+' '+p.name+' '+(p.client||'')).toLowerCase().includes(q));
+if(tlFilter)projects=projects.filter(p=>tlFilter==='overdue'?(p.st.state==='overdue'||p.st.state==='today'):tlFilter==='week'?p.st.state==='soon':tlFilter==='ontrack'?p.st.state==='ontrack':p.st.state==='none');
+const rank={overdue:0,today:1,soon:2,ontrack:3,delivered:4,none:5};
+projects.sort((a,b)=>{const ra=rank[a.st.state]??9,rb=rank[b.st.state]??9;if(ra!==rb)return ra-rb;if(a.tl&&b.tl&&a.tl.endDate&&b.tl.endDate&&a.tl.endDate!==b.tl.endDate)return a.tl.endDate<b.tl.endDate?-1:1;return (a.name||'').localeCompare(b.name||'');});
+const countEl=document.getElementById('proj-count');if(countEl)countEl.textContent=projects.length+' project'+(projects.length!==1?'s':'');
+const grid=document.getElementById('projects-grid');if(!grid)return;
+if(!projects.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">'+(tab==='completed'?'📋':'🔍')+'</div><div>'+(q||tlFilter?'No projects match your search or filter':'No '+(tab==='active'?'active':'completed')+' projects')+'</div></div>';return;}
+grid.innerHTML=projects.map(p=>{
+  const done=p.tasks.filter(t=>t.status==='Completed').length;const pct=Math.round(done/p.tasks.length*100);
+  const pending=p.tasks.filter(t=>t.status==='Pending').length;const inprog=p.tasks.filter(t=>t.status==='In Progress').length;
+  const overdue=p.tasks.filter(t=>t.alert==='Overdue'||t.status==='Delayed').length;const onhold=p.tasks.filter(t=>t.status==='On Hold').length;const review=p.tasks.filter(t=>t.status==='Submitted for Review').length;
+  const statusChips=(overdue?'<span class="badge b-overdue" style="font-size:10px;">'+overdue+' Task Overdue</span>':'')+(onhold?'<span class="badge b-amber" style="font-size:10px;">'+onhold+' On Hold</span>':'')+(review?'<span class="badge b-purple" style="font-size:10px;">'+review+' In Review</span>':'');
+  const pk=(p.code||'')+'_SEP_'+encodeURIComponent(p.name);
+  const accent=p.st.state==='overdue'||p.st.state==='today'?'border-left:3px solid var(--red);':p.st.state==='soon'?'border-left:3px solid var(--amber);':p.st.state==='none'?'border-left:3px solid var(--border2);':'';
+  return '<div class="card" style="margin:0;cursor:pointer;'+accent+'" onclick="openProjectDetail(\''+pk+'\')">'
+   +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">'
+   +'<div>'+(p.code?'<div style="font-size:11px;font-weight:700;color:var(--blue-t);letter-spacing:.04em;">#'+p.code+'</div>':'')
+   +'<div style="font-size:14px;font-weight:600;margin:2px 0;">'+p.name+'</div>'
+   +(p.client?'<div style="font-size:11px;color:var(--text3);">&#128100; '+p.client+'</div>':'')+'</div>'
+   +'<div style="text-align:right;font-size:11px;color:var(--text3);white-space:nowrap;">'+p.tasks.length+' task'+(p.tasks.length!==1?'s':'')+'</div></div>'
+   +'<div style="margin:10px 0 4px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px;"><span>'+done+'/'+p.tasks.length+' tasks done</span><span>'+pct+'%</span></div><div class="pbar"><div class="pbar-fill" style="width:'+pct+'%;"></div></div></div>'
+   +timelineBox(p.tl,p.st,pk,isManager)
+   +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--text3);">'+(pending?'<span>&#9899; '+pending+' Pending</span>':'')+(inprog?'<span>&#128336; '+inprog+' In Progress</span>':'')+(done&&tab==='active'?'<span style="color:var(--green);">&#10003; '+done+' Done</span>':'')+'</div>'
+   +(statusChips?'<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">'+statusChips+'</div>':'')
+   +'</div>';
+}).join('');
+});});}
+function openProjectDetail(key){const parts=key.split('_SEP_');const code=parts[0];const name=decodeURIComponent(parts[1]);loadProjects(()=>{getData('tasks',tasks=>{
+const tArr=tasks?Object.values(tasks):[];
+const projTasks=tArr.filter(t=>(t.code&&t.code!=='NEW'?t.code:t.project)===(code||name));
+const client=projTasks.find(t=>t.client)?.client||'';const type=projTasks.find(t=>t.type)?.type||'';
+const done=projTasks.filter(t=>t.status==='Completed').length;const pct=projTasks.length?Math.round(done/projTasks.length*100):0;
+const isDone=projTasks.length>0&&done===projTasks.length;
+const isManager=currentUser&&currentUser.role==='manager';
+const tl=getTL(code,name);const st=timelineState(tl,isDone);
+const el=document.getElementById('project-detail-modal');el.style.display='flex';
+document.getElementById('pdm-code').textContent=code?'Project #'+code:'';
+document.getElementById('pdm-name').textContent=name;
+document.getElementById('pdm-meta').textContent=[client?'Client: '+client:'',type?'Type: '+type:''].filter(Boolean).join(' · ')||'No client info';
+const pk=(code||'')+'_SEP_'+encodeURIComponent(name);
+const tlEl=document.getElementById('pdm-timeline');
+if(tlEl){
+  if(!tl||!tl.endDate){
+    tlEl.innerHTML='<div style="background:var(--surf2);border:1px dashed var(--border2);border-radius:var(--rs);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;"><div><div style="font-size:12px;font-weight:600;">&#9201; No timeline set</div><div style="font-size:11px;color:var(--text3);margin-top:2px;">Set a start date and delivery date to track this project.</div></div>'+(isManager?'<button class="btn btn-sm btn-primary" style="width:auto;" onclick="openTimelineModal(\''+pk+'\')">Set Timeline</button>':'')+'</div>';
+  }else{
+    const dur=durationOf(tl.startDate,tl.endDate);
+    const elapsed=Math.max(0,daysBetween(parseD(tl.startDate),todayMid()));
+    tlEl.innerHTML='<div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--rs);padding:13px 15px;">'
+     +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><div style="font-size:12px;font-weight:600;">&#128197; Project Timeline</div><div style="display:flex;align-items:center;gap:6px;">'+tlPill(st,11)+(isManager?'<button class="btn btn-sm" onclick="openTimelineModal(\''+pk+'\')">Edit</button>':'')+'</div></div>'
+     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;">'
+     +'<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">Start</div><div style="font-size:13px;font-weight:600;">'+fmtD(tl.startDate)+'</div></div>'
+     +'<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">Delivery</div><div style="font-size:13px;font-weight:600;">'+fmtD(tl.endDate)+'</div></div>'
+     +'<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">Duration</div><div style="font-size:13px;font-weight:600;">'+(dur!==null?dur+' days':'—')+'</div></div>'
+     +'<div><div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">'+(isDone?'Delivered':(st.days!==null&&st.days<0?'Overdue by':'Days left'))+'</div><div style="font-size:13px;font-weight:700;color:'+st.color+';">'+(isDone?(tl.deliveredAt?fmtD(tl.deliveredAt):'—'):(st.days!==null?Math.abs(st.days)+' day'+(Math.abs(st.days)===1?'':'s'):'—'))+'</div></div>'
+     +'</div>'
+     +'<div class="tlbar"><div class="tlbar-fill" style="width:'+st.pct+'%;background:'+st.color+';"></div></div>'
+     +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:5px;"><span>Day '+Math.min(elapsed,dur||elapsed)+' of '+(dur||'—')+'</span><span>'+st.pct+'% of schedule elapsed</span></div>'
+     +'</div>';
+  }
+}
+document.getElementById('pdm-progress-label').textContent=done+' of '+projTasks.length+' tasks completed';
+document.getElementById('pdm-pct').textContent=pct+'%';
+document.getElementById('pdm-pbar').style.width=pct+'%';
+const statuses={Completed:0,Pending:0,'In Progress':0,Delayed:0,'On Hold':0,'Submitted for Review':0};
+projTasks.forEach(t=>statuses[t.status]=(statuses[t.status]||0)+1);
+document.getElementById('pdm-stats').innerHTML=Object.entries(statuses).filter(([,v])=>v>0).map(([s,v])=>'<div style="background:var(--surf2);border-radius:6px;padding:6px 12px;text-align:center;"><div style="font-size:16px;font-weight:700;">'+v+'</div><div style="font-size:10px;color:var(--text3);">'+s+'</div></div>').join('');
+document.getElementById('pdm-tasks').innerHTML=projTasks.length?projTasks.map(t=>'<div class="task-card" style="cursor:pointer;margin-bottom:8px;" onclick="closeProjectDetail();openTaskDetail(\''+t.id+'\')"><div style="display:flex;justify-content:space-between;align-items:flex-start;"><div style="font-size:13px;font-weight:500;">'+t.scope+'</div>'+statusBadge(t.status)+'</div><div class="task-meta" style="margin-top:6px;">'+priorityBadge(t.priority)+(t.assignee?'<span style="font-size:12px;color:var(--text3);">&#128100; '+t.assignee+'</span>':'<span style="font-size:12px;color:var(--text3);">Unassigned</span>')+(t.deadline?'<span style="font-size:11px;color:var(--text3);">&#128197; '+t.deadline+'</span>':'')+'</div>'+deadlineLabel(t)+(t.notes?'<div style="font-size:11px;color:var(--text3);margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">'+t.notes+'</div>':'')+'</div>').join(''):'<div class="empty">No tasks found</div>';
+});});}
 function closeProjectDetail(){const el=document.getElementById('project-detail-modal');if(el)el.style.display='none';}
 function openAssignModal(){showPage('assign');}
 function renderMyTasks(){getData('tasks',tasks=>{const tArr=tasks?Object.values(tasks):[];const mine=tArr.filter(t=>t.assignee===currentUser.name);const fs=(document.getElementById('mt-status')||{}).value||'';const fp=(document.getElementById('mt-priority')||{}).value||'';const filtered=mine.filter(t=>{if(fs&&t.status!==fs)return false;if(fp&&t.priority!==fp)return false;return true;});const el=document.getElementById('my-tasks-list');const countEl=document.getElementById('my-task-count');if(countEl)countEl.textContent=filtered.length+' task'+(filtered.length!==1?'s':'');if(!filtered.length){el.innerHTML='<div class="empty"><div class="empty-icon">&#9989;</div><div>No tasks found</div></div>';return;}const newTaskIds=lsGet('new_tasks_'+currentUser.id)||[];el.innerHTML=filtered.map(t=>{const isNew=newTaskIds.includes(t.id);return'<div class="task-card '+(t.alert==='Overdue'?'urgent':isNew?'new-task':'')+'"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div><div style="font-size:14px;font-weight:500;">'+t.scope+'</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">'+(t.code&&t.code!=='NEW'?'<span style="background:var(--blue-bg);color:var(--blue-t);padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;margin-right:4px;">#'+t.code+'</span>':'')+t.project+(t.client?' &middot; '+t.client:'')+'</div></div>'+(isNew?'<span class="badge b-inprogress" style="font-size:10px;flex-shrink:0;">New</span>':'')+'</div><div class="task-meta">'+statusBadge(t.status)+priorityBadge(t.priority)+(t.deadline?'<span style="font-size:12px;color:var(--text3);">&#128197; '+t.deadline+'</span>':'')+deadlineLabel(t)+(t.estHours?'<span style="font-size:12px;color:var(--text3);">&#8987; '+t.estHours+'h</span>':'')+'</div>'+(t.notes?'<div style="font-size:12px;color:var(--text2);background:var(--surf2);border-radius:6px;padding:8px;margin-top:8px;line-height:1.6;">&#128204; '+t.notes+'</div>':'')+(t.lastComment?'<div style="font-size:12px;color:var(--text3);margin-top:6px;">&#128172; '+t.lastComment+'</div>':'')+'<div class="task-actions"><button class="btn btn-sm btn-primary" onclick="openStatusModal(\''+t.id+'\',\''+t.scope.replace(/'/g,"\\'")+'\',\''+t.status+'\')">Update Status</button><button class="btn btn-sm" onclick="openTaskDetail(\''+t.id+'\')">View Details</button></div></div>';}).join('');lsSet('new_tasks_'+currentUser.id,[]);});}
