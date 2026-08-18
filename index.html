@@ -168,6 +168,9 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
 .seg-btn:last-child{border-radius:0 var(--rs) var(--rs) 0;}
 .seg-btn.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue-t);font-weight:600;}
 
+/* child modals must sit above the project detail sheet (z-index 1000) */
+.modal-overlay{z-index:1400;}
+
 </style>
 </head>
 <body>
@@ -642,7 +645,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
 <!-- MEETING MINUTES MODAL -->
 <div class="modal-overlay" id="mom-modal">
   <div class="modal" style="width:600px;">
-    <div class="modal-header"><div class="modal-title" id="mom-modal-title">Draft meeting minutes</div><button class="modal-close" onclick="closeModal('mom-modal')">&#10005;</button></div>
+    <div class="modal-header"><div class="modal-title" id="mom-modal-title">Draft meeting minutes</div><button class="modal-close" onclick="closeMomModal()">&#10005;</button></div>
     <div class="modal-body">
       <div id="mom-proj" style="font-size:12px;color:var(--text3);margin-bottom:14px;"></div>
       <div class="form-row">
@@ -663,7 +666,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
     </div>
     <div class="modal-footer">
       <button class="btn btn-sm" id="mom-delete" onclick="deleteMom()" style="background:none;border:1px solid var(--red);color:var(--red);margin-right:auto;display:none;">&#128465; Delete</button>
-      <button class="btn" onclick="closeModal('mom-modal')">Cancel</button>
+      <button class="btn" onclick="closeMomModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveMom()">Save &amp; Share Minutes</button>
     </div>
   </div>
@@ -671,7 +674,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
 <!-- MEETING MINUTES VIEW MODAL -->
 <div class="modal-overlay" id="mom-view-modal">
   <div class="modal" style="width:560px;">
-    <div class="modal-header"><div class="modal-title" id="momv-title">Meeting minutes</div><button class="modal-close" onclick="closeModal('mom-view-modal')">&#10005;</button></div>
+    <div class="modal-header"><div class="modal-title" id="momv-title">Meeting minutes</div><button class="modal-close" onclick="closeMomView()">&#10005;</button></div>
     <div class="modal-body" id="momv-body"></div>
     <div class="modal-footer" id="momv-footer"></div>
   </div>
@@ -679,7 +682,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
 <!-- PROJECT HANDOVER / STATUS MODAL -->
 <div class="modal-overlay" id="handover-modal">
   <div class="modal" style="width:480px;">
-    <div class="modal-header"><div class="modal-title">Close / hand over project</div><button class="modal-close" onclick="closeModal('handover-modal')">&#10005;</button></div>
+    <div class="modal-header"><div class="modal-title">Close / hand over project</div><button class="modal-close" onclick="closeHandoverModal()">&#10005;</button></div>
     <div class="modal-body">
       <div id="ho-proj" style="font-size:12px;color:var(--text3);margin-bottom:14px;"></div>
       <div class="form-label" style="margin-bottom:6px;">Completion checklist</div>
@@ -689,7 +692,7 @@ select.form-input{cursor:pointer;}textarea.form-input{resize:vertical;min-height
       <div class="form-group"><label class="form-label">Note <span style="color:var(--text3);font-weight:400;">(optional)</span></label><textarea class="form-input" id="ho-note" placeholder="e.g. Waiting on LDA NOC, submitted 12 Aug" style="min-height:60px;"></textarea></div>
       <div style="font-size:11px;color:var(--text2);background:var(--surf2);border-radius:var(--rs);padding:9px 11px;line-height:1.55;">A project is only counted as finished when you set it to <b>Handed Over</b>. Finishing all the tasks moves it to <b>Awaiting Approval / Handover</b> &mdash; never straight to completed.</div>
     </div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('handover-modal')">Cancel</button><button class="btn btn-primary" onclick="saveHandover()">Save Status</button></div>
+    <div class="modal-footer"><button class="btn" onclick="closeHandoverModal()">Cancel</button><button class="btn btn-primary" onclick="saveHandover()">Save Status</button></div>
   </div>
 </div>
 <!-- STATUS UPDATE MODAL -->
@@ -1366,6 +1369,7 @@ function openMomModal(pk,momId,linkTaskId){
   const parts=String(pk||'').split('_SEP_');
   const code=parts[0]||'';const name=decodeURIComponent(parts[1]||'');
   window._momCtx={code:code,name:name,pkey:projKey(code,name),momId:momId||'',linkTaskId:linkTaskId||''};
+  stashDetail();
   loadMinutes(()=>{
     const m=momId?momById(momId):null;
     document.getElementById('mom-modal-title').textContent=m?'Edit meeting minutes':'Draft meeting minutes';
@@ -1432,8 +1436,7 @@ function saveMom(){
         });
         closeModal('mom-modal');
         renderMinutesPage();renderAllTasks();renderMyTasks();
-        const pdm=document.getElementById('project-detail-modal');
-        if(pdm&&pdm.style.display==='flex')openProjectDetail((ctx.code||'')+'_SEP_'+encodeURIComponent(ctx.name));
+        returnToDetail();
       };
       if(!left){done();return;}
       jobs.forEach(([t,next])=>{updateData('tasks/'+t.id,{momIds:next},()=>{if(--left===0)done();});});
@@ -1450,13 +1453,13 @@ function deleteMom(){
     removeData('minutes/'+id);
     delete MOM_CACHE[id];
     toast('Meeting minutes deleted.');closeModal('mom-modal');renderMinutesPage();renderAllTasks();
-    const pdm=document.getElementById('project-detail-modal');
-    if(pdm&&pdm.style.display==='flex')openProjectDetail((ctx.code||'')+'_SEP_'+encodeURIComponent(ctx.name));
+    returnToDetail();
   });
 }
 function viewMom(id){
   loadMinutes(()=>{
     const m=momById(id);if(!m){toast('These minutes are no longer available.');return;}
+    stashDetail();
     const ph=PHASES[m.phase||1];
     document.getElementById('momv-title').textContent=m.title||'Meeting minutes';
     document.getElementById('momv-body').innerHTML=
@@ -1468,7 +1471,7 @@ function viewMom(id){
       +'<div class="detail-row"><div class="detail-label">Recorded by</div><div style="font-size:12px;color:var(--text3);">'+esc(m.createdBy||'Manager')+(m.updatedAt?' &middot; last edited '+formatTime(m.updatedAt):'')+'</div></div>';
     const f=document.getElementById('momv-footer');
     const pk=(m.code||'')+'_SEP_'+encodeURIComponent(m.project||'');
-    f.innerHTML='<button class="btn" onclick="closeModal(\'mom-view-modal\')">Close</button>'+(currentUser&&currentUser.role==='manager'?'<button class="btn btn-primary" onclick="closeModal(\'mom-view-modal\');openMomModal(\''+jsq(pk)+'\',\''+jsq(m.id)+'\')">Edit Minutes</button>':'');
+    f.innerHTML='<button class="btn" onclick="closeMomView()">Close</button>'+(currentUser&&currentUser.role==='manager'?'<button class="btn btn-primary" onclick="closeModal(\'mom-view-modal\');openMomModal(\''+jsq(pk)+'\',\''+jsq(m.id)+'\')">Edit Minutes</button>':'');
     openModal('mom-view-modal');
   });
 }
@@ -2064,7 +2067,7 @@ function openProjectDetail(key){
             +'<div style="font-size:11px;color:var(--text3);margin-top:6px;">'+ps.tasks.length+' task'+(ps.tasks.length!==1?'s':'')+' &middot; '+ps.done+' completed'+(momP.length?' &middot; &#128221; '+momP.length+' meeting minute'+(momP.length!==1?'s':''):'')+'</div>'
             +'<div class="stage-row">'+PHASES[pid].stages.map(s=>{const plain=s.replace(/&amp;/g,'&');const cls=stagesDone.has(plain)||stagesDone.has(s)?'done':(stagesDoing.has(plain)||stagesDoing.has(s)?'doing':'');return '<span class="stage-tag '+cls+'">'+(cls==='done'?'&#10003; ':'')+s+'</span>';}).join('')+'</div>'
             +(ps.tasks.length?'<div style="margin-top:9px;">'+ps.tasks.map(t=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border);cursor:pointer;" onclick="closeProjectDetail();openTaskDetail(\''+jsq(t.id)+'\')"><div style="min-width:0;"><div style="font-size:12px;font-weight:500;">'+esc(t.scope)+'</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">'+(t.assignee?esc(t.assignee):'Unassigned')+' &middot; assigned '+(assignedOf(t)?fmtD(assignedOf(t)):'—')+(t.deadline?' &middot; due '+fmtD(t.deadline):'')+'</div></div>'+statusBadge(t.status)+'</div>').join('')+'</div>':'')
-            +(isManager?'<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm" onclick="closeProjectDetail();prefillAssign(\''+jsq(pk)+'\','+pid+')">+ Add task to this phase</button><button class="btn btn-sm" onclick="closeProjectDetail();openMomModalForPhase(\''+jsq(pk)+'\','+pid+')">&#128221; Draft minutes</button></div>':'')
+            +(isManager?'<div style="margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;"><button class="btn btn-sm" onclick="prefillAssign(\''+jsq(pk)+'\','+pid+')">+ Add task to this phase</button><button class="btn btn-sm" onclick="openMomModalForPhase(\''+jsq(pk)+'\','+pid+')">&#128221; Draft minutes</button></div>':'')
             +'</div>';
         }).join('');
     }
@@ -2090,6 +2093,7 @@ function openProjectDetail(key){
 }
 function prefillAssign(pk,pid){
   const parts=String(pk).split('_SEP_');const code=parts[0]||'';const name=decodeURIComponent(parts[1]||'');
+  closeProjectDetail();
   showPage('assign');
   setTimeout(()=>{
     const sel=document.getElementById('a-project');
@@ -2126,32 +2130,6 @@ function confirmGuessedPhases(pk){
 }
 
 /* =====================  HANDOVER / STATUS MODAL  ===================== */
-function openHandoverModal(pk){
-  const parts=String(pk).split('_SEP_');const code=parts[0]||'';const name=decodeURIComponent(parts[1]||'');
-  const pkey=projKey(code,name);
-  window._hoTarget={code:code,name:name,pkey:pkey,pk:pk};
-  loadProjects(()=>{getData('tasks',tasks=>{
-    const tArr=tasks?Object.values(tasks):[];
-    const projTasks=tArr.filter(t=>(t.code&&t.code!=='NEW'?t.code:t.project)===(code||name));
-    const meta=PROJ_META[pkey]||null;
-    const cur=projStatus(meta,projTasks);
-    document.getElementById('ho-proj').innerHTML=(code?'<b>#'+esc(code)+'</b> &mdash; ':'')+esc(name);
-    const checks=PHASE_IDS.map(pid=>{
-      const ps=phaseStateOf(meta,projTasks,pid);
-      const ok=ps.k==='closed';
-      return '<div class="hand-check"><span class="'+(ok?'ok':'no')+'">'+(ok?'&#10003;':'&#9675;')+'</span><span>Phase '+pid+' &mdash; '+PHASES[pid].name+'</span><span style="margin-left:auto;font-size:11px;color:var(--text3);">'+(ok?'Completed':ps.label)+'</span></div>';
-    }).join('');
-    const openT=projTasks.filter(t=>t.status!=='Completed').length;
-    document.getElementById('ho-checks').innerHTML=checks
-      +'<div class="hand-check"><span class="'+(openT?'no':'ok')+'">'+(openT?'&#9675;':'&#10003;')+'</span><span>All tasks completed</span><span style="margin-left:auto;font-size:11px;color:var(--text3);">'+(openT?openT+' still open':'Yes')+'</span></div>';
-    const sel=document.getElementById('ho-status');
-    sel.innerHTML=PROJ_STATUSES.map(s=>'<option '+(s===cur?'selected':'')+'>'+s+'</option>').join('');
-    document.getElementById('ho-date').value=(meta&&meta.handedOverAt)||isoD(todayMid());
-    document.getElementById('ho-note').value=(meta&&meta.statusNote)||'';
-    onHoStatusChange();
-    openModal('handover-modal');
-  });});
-}
 function onHoStatusChange(){
   const v=document.getElementById('ho-status').value;
   const w=document.getElementById('ho-date-wrap');
@@ -2167,25 +2145,6 @@ function onHoStatusChange(){
     hint.textContent=msg[v]||'';
   }
 }
-function saveHandover(){
-  const t=window._hoTarget;if(!t)return;
-  const status=document.getElementById('ho-status').value;
-  const note=(document.getElementById('ho-note').value||'').trim();
-  const date=document.getElementById('ho-date').value;
-  if(status==='Handed Over'&&!date){toast('Please set the handover date.');return;}
-  const extra={statusNote:note};
-  if(status==='Handed Over'){extra.handedOverAt=date;extra.deliveredAt=date;}
-  setProjStatus(t.pkey,status,extra,()=>{
-    toast(status==='Handed Over'?'Project handed over on '+fmtD(date)+'.':'Project status set to “'+status+'”.');
-    closeModal('handover-modal');
-    if(status==='Handed Over')window._projTab='completed';
-    renderProjectsPage();renderDashboard();
-    switchProjectTab(window._projTab||'active');
-    openProjectDetail(t.pk);
-  });
-}
-
-/* =====================  DASHBOARD  ===================== */
 function renderDashboard(){
   loadProjects(()=>{loadMinutes(()=>{getData('tasks',tasks=>{getData('members',members=>{
     const tArr=tasks?Object.values(tasks):[];
@@ -2312,6 +2271,114 @@ function resetApp(){
   ['setup_done','mgr_pass','offline','fb_config','ejs','members','tasks','notifications','projects','minutes'].forEach(k=>localStorage.removeItem('seeca_'+k));
   location.reload();
 }
+
+
+/* =====================================================================
+   MODAL FLOW
+   The project detail sheet sits at z-index 1000 while .modal-overlay sits
+   lower, so a child modal opened from it was rendering underneath. Child
+   modals now take over the screen and hand control back when they close.
+   ===================================================================== */
+function stashDetail(){
+  const el=document.getElementById('project-detail-modal');
+  if(el&&el.style.display==='flex'){window._pdmReturn=window._pdmKey||null;el.style.display='none';}
+  else window._pdmReturn=null;
+  return window._pdmReturn;
+}
+function returnToDetail(){
+  const k=window._pdmReturn;
+  window._pdmReturn=null;
+  if(k)openProjectDetail(k);
+}
+function dropDetailReturn(){window._pdmReturn=null;}
+function closeProjectDetail(){const el=document.getElementById('project-detail-modal');if(el)el.style.display='none';window._pdmReturn=null;}
+
+/* ---------- handover ---------- */
+function openHandoverModal(pk){
+  const parts=String(pk).split('_SEP_');const code=parts[0]||'';const name=decodeURIComponent(parts[1]||'');
+  const pkey=projKey(code,name);
+  window._hoTarget={code:code,name:name,pkey:pkey,pk:pk};
+  stashDetail();
+  loadProjects(()=>{getData('tasks',tasks=>{
+    const tArr=tasks?Object.values(tasks):[];
+    const projTasks=tArr.filter(t=>(t.code&&t.code!=='NEW'?t.code:t.project)===(code||name));
+    const meta=PROJ_META[pkey]||null;
+    const cur=projStatus(meta,projTasks);
+    document.getElementById('ho-proj').innerHTML=(code?'<b>#'+esc(code)+'</b> &mdash; ':'')+esc(name);
+    const checks=PHASE_IDS.map(pid=>{
+      const ps=phaseStateOf(meta,projTasks,pid);
+      const ok=ps.k==='closed';
+      return '<div class="hand-check"><span class="'+(ok?'ok':'no')+'">'+(ok?'&#10003;':'&#9675;')+'</span><span>Phase '+pid+' &mdash; '+PHASES[pid].name+'</span><span style="margin-left:auto;font-size:11px;color:var(--text3);">'+(ok?'Completed':ps.label)+'</span></div>';
+    }).join('');
+    const openT=projTasks.filter(t=>t.status!=='Completed').length;
+    document.getElementById('ho-checks').innerHTML=checks
+      +'<div class="hand-check"><span class="'+(openT?'no':'ok')+'">'+(openT?'&#9675;':'&#10003;')+'</span><span>All tasks completed</span><span style="margin-left:auto;font-size:11px;color:var(--text3);">'+(openT?openT+' still open':'Yes')+'</span></div>';
+    document.getElementById('ho-status').innerHTML=PROJ_STATUSES.map(s=>'<option '+(s===cur?'selected':'')+'>'+s+'</option>').join('');
+    document.getElementById('ho-date').value=(meta&&meta.handedOverAt)||isoD(todayMid());
+    document.getElementById('ho-note').value=(meta&&meta.statusNote)||'';
+    onHoStatusChange();
+    openModal('handover-modal');
+  });});
+}
+function closeHandoverModal(){closeModal('handover-modal');returnToDetail();}
+function saveHandover(){
+  const t=window._hoTarget;if(!t)return;
+  const status=document.getElementById('ho-status').value;
+  const note=(document.getElementById('ho-note').value||'').trim();
+  const date=document.getElementById('ho-date').value;
+  if(status==='Handed Over'&&!date){toast('Please set the handover date.');return;}
+  const extra={statusNote:note};
+  if(status==='Handed Over'){extra.handedOverAt=date;extra.deliveredAt=date;}
+  setProjStatus(t.pkey,status,extra,()=>{
+    toast(status==='Handed Over'?'Project handed over on '+fmtD(date)+'.':'Project status set to \u201c'+status+'\u201d.');
+    closeModal('handover-modal');
+    if(status==='Handed Over')window._projTab='completed';
+    renderDashboard();
+    switchProjectTab(window._projTab||'active');
+    returnToDetail();
+  });
+}
+
+/* ---------- timeline ---------- */
+function openTimelineModal(pk){
+  const parts=String(pk).split('_SEP_');
+  const code=parts[0]||'';const name=decodeURIComponent(parts[1]||'');
+  window._tlTarget={code:code,name:name,key:projKey(code,name)};
+  stashDetail();
+  loadProjects(()=>{
+    const tl=PROJ_META[window._tlTarget.key]||{};
+    document.getElementById('ptm-sub').innerHTML=(code?'<b>#'+esc(code)+'</b> &mdash; ':'')+esc(name);
+    document.getElementById('ptm-start').value=tl.startDate||isoD(todayMid());
+    document.getElementById('ptm-end').value=tl.endDate||addDaysStr(tl.startDate||isoD(todayMid()),21);
+    document.getElementById('ptm-remove').style.display=tl.endDate?'inline-flex':'none';
+    document.getElementById('proj-timeline-modal').style.display='flex';
+    onPtmInput();
+  });
+}
+function closeTimelineModal(){document.getElementById('proj-timeline-modal').style.display='none';window._tlTarget=null;returnToDetail();}
+function saveProjectTimeline(){
+  const t=window._tlTarget;if(!t)return;
+  const s=document.getElementById('ptm-start').value,e=document.getElementById('ptm-end').value;
+  if(!s||!e){toast('Please select both a start date and a delivery date.');return;}
+  const dur=durationOf(s,e);
+  if(dur===null||dur<=0){toast('Delivery date must be after the start date.');return;}
+  const prev=PROJ_META[t.key]||{};
+  saveProjMeta(t.key,{key:t.key,code:t.code||'',name:t.name,startDate:s,endDate:e,durationDays:dur,updatedAt:Date.now(),setBy:(currentUser&&currentUser.name)||'Manager'},()=>{
+    toast('Timeline saved — delivery '+fmtD(e)+' ('+dur+' days)');
+    if(prev.endDate&&prev.endDate!==e)notifyProjectTimeline(t.code,t.name,e,true);
+    else if(!prev.endDate)notifyProjectTimeline(t.code,t.name,e,false);
+    renderProjectsPage();renderDashboard();updateTimelineSection();
+    closeTimelineModal();
+  });
+}
+function removeProjectTimeline(){
+  const t=window._tlTarget;if(!t)return;
+  removeProjMeta(t.key,()=>{toast('Timeline removed.');renderProjectsPage();renderDashboard();updateTimelineSection();closeTimelineModal();});
+}
+
+/* ---------- meeting minutes ---------- */
+function closeMomModal(){closeModal('mom-modal');returnToDetail();}
+function closeMomView(){closeModal('mom-view-modal');returnToDetail();}
 
 </script>
 </body>
